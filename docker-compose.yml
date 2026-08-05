@@ -1,0 +1,16 @@
+# For running the site locally, and as an alternative to Dokploy's
+# "Dockerfile" application type if you prefer deploying via Compose.
+#
+#   docker compose up --build      →  http://localhost:8080
+#
+# Deploying through Dokploy as an Application (recommended) does not use this
+# file — Dokploy builds the Dockerfile directly and routes traffic to port 80.
+
+services:
+  presstrack:
+    build: .
+    image: presstrack:latest
+    container_name: presstrack
+    restart: unless-stopped
+    ports:
+      - "8080:80"

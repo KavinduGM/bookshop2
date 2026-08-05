@@ -1,0 +1,1673 @@
+<title>PressTrack — Print Shop Job Tracker</title>
+
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --paper:#F7F7F5;
+  --surface:#FFFFFF;
+  --surface-2:#F1F2EF;
+  --ink:#16181C;
+  --ink-2:#454A52;
+  --muted:#6B7079;
+  --faint:#9AA0A8;
+  --line:#E1E3DF;
+  --line-2:#EDEEEB;
+
+  --c:#0090B8;   /* cyan  — prepress */
+  --m:#C2185B;   /* magenta — press */
+  --y:#B58100;   /* yellow — finishing */
+  --k:#3A4048;   /* key — delivery */
+
+  --accent:#0F7B9C;
+  --accent-soft:#E4F2F7;
+  --ok:#1F7A4D;
+  --ok-soft:#E4F1EA;
+  --warn:#B26A00;
+  --warn-soft:#F8EEDC;
+  --bad:#B3372A;
+  --bad-soft:#F8E7E4;
+
+  --shadow:0 1px 2px rgba(22,24,28,.05), 0 8px 24px -12px rgba(22,24,28,.18);
+  --shadow-lg:0 24px 64px -20px rgba(22,24,28,.35);
+
+  --sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono",Menlo,Consolas,"Liberation Mono",monospace;
+
+  --r:8px;
+  --rail:216px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --paper:#101215; --surface:#171A1F; --surface-2:#1E2229;
+    --ink:#E8E9EA; --ink-2:#BFC4CB; --muted:#8E949E; --faint:#6A7079;
+    --line:#282C33; --line-2:#212429;
+    --c:#3EC0E3; --m:#F0619B; --y:#E0AC2B; --k:#98A1AC;
+    --accent:#3EC0E3; --accent-soft:#12303A;
+    --ok:#4FBE86; --ok-soft:#12301F;
+    --warn:#E0A33B; --warn-soft:#332506;
+    --bad:#EE7666; --bad-soft:#331714;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+    --shadow-lg:0 24px 64px -20px rgba(0,0,0,.75);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#101215; --surface:#171A1F; --surface-2:#1E2229;
+  --ink:#E8E9EA; --ink-2:#BFC4CB; --muted:#8E949E; --faint:#6A7079;
+  --line:#282C33; --line-2:#212429;
+  --c:#3EC0E3; --m:#F0619B; --y:#E0AC2B; --k:#98A1AC;
+  --accent:#3EC0E3; --accent-soft:#12303A;
+  --ok:#4FBE86; --ok-soft:#12301F;
+  --warn:#E0A33B; --warn-soft:#332506;
+  --bad:#EE7666; --bad-soft:#331714;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  --shadow-lg:0 24px 64px -20px rgba(0,0,0,.75);
+}
+:root[data-theme="light"]{
+  --paper:#F7F7F5; --surface:#FFFFFF; --surface-2:#F1F2EF;
+  --ink:#16181C; --ink-2:#454A52; --muted:#6B7079; --faint:#9AA0A8;
+  --line:#E1E3DF; --line-2:#EDEEEB;
+  --c:#0090B8; --m:#C2185B; --y:#B58100; --k:#3A4048;
+  --accent:#0F7B9C; --accent-soft:#E4F2F7;
+  --ok:#1F7A4D; --ok-soft:#E4F1EA;
+  --warn:#B26A00; --warn-soft:#F8EEDC;
+  --bad:#B3372A; --bad-soft:#F8E7E4;
+  --shadow:0 1px 2px rgba(22,24,28,.05), 0 8px 24px -12px rgba(22,24,28,.18);
+  --shadow-lg:0 24px 64px -20px rgba(22,24,28,.35);
+}
+
+/* ============ BASE ============ */
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--sans); font-size:14px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{margin:0; text-wrap:balance; letter-spacing:-.014em; font-weight:600}
+p{margin:0}
+button,input,select,textarea{font:inherit; color:inherit}
+button{cursor:pointer; background:none; border:none; padding:0}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:3px}
+.num{font-family:var(--mono); font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1}
+.lbl{
+  font-family:var(--mono); font-size:10px; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--faint); font-weight:500;
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important; transition-duration:.01ms !important}
+}
+
+/* ============ SHELL ============ */
+.app{display:flex; min-height:100vh}
+
+.rail{
+  width:var(--rail); flex:0 0 var(--rail);
+  background:var(--surface); border-right:1px solid var(--line);
+  display:flex; flex-direction:column; gap:4px;
+  padding:18px 12px; position:sticky; top:0; height:100vh;
+}
+.brand{display:flex; align-items:center; gap:10px; padding:2px 8px 18px}
+.brand-name{font-size:14.5px; font-weight:650; letter-spacing:-.02em; line-height:1.15}
+.brand-sub{font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--faint)}
+
+.nav{display:flex; flex-direction:column; gap:2px}
+.nav-item{
+  display:flex; align-items:center; gap:10px; width:100%;
+  padding:8px 10px; border-radius:var(--r); color:var(--ink-2);
+  font-size:13.5px; font-weight:500; text-align:left; transition:background .12s, color .12s;
+}
+.nav-item:hover{background:var(--surface-2); color:var(--ink)}
+.nav-item[aria-current="page"]{background:var(--accent-soft); color:var(--accent); font-weight:600}
+.nav-item svg{flex:0 0 16px; opacity:.85}
+.nav-count{
+  margin-left:auto; font-family:var(--mono); font-size:10.5px;
+  color:var(--faint); font-variant-numeric:tabular-nums;
+}
+.nav-item[aria-current="page"] .nav-count{color:var(--accent); opacity:.75}
+
+.rail-foot{margin-top:auto; display:flex; flex-direction:column; gap:10px; padding-top:14px; border-top:1px solid var(--line-2)}
+.role{display:flex; background:var(--surface-2); border-radius:var(--r); padding:3px; gap:2px}
+.role button{
+  flex:1; padding:6px 4px; border-radius:6px; font-size:11.5px; font-weight:600;
+  color:var(--muted); transition:background .12s, color .12s;
+}
+.role button[aria-pressed="true"]{background:var(--surface); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.09)}
+.role-note{font-size:11px; color:var(--faint); line-height:1.45; padding:0 4px}
+
+/* ============ MAIN ============ */
+.main{flex:1; min-width:0; display:flex; flex-direction:column}
+.topbar{
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  padding:20px 28px 16px; border-bottom:1px solid var(--line);
+  background:var(--paper); position:sticky; top:0; z-index:20;
+}
+.topbar h1{font-size:19px}
+.topbar-sub{font-size:12.5px; color:var(--muted); margin-top:2px}
+.topbar-actions{margin-left:auto; display:flex; align-items:center; gap:8px}
+
+.content{padding:24px 28px 64px; display:flex; flex-direction:column; gap:24px}
+
+/* ============ CONTROLS ============ */
+.btn{
+  display:inline-flex; align-items:center; gap:7px; padding:8px 14px;
+  border-radius:var(--r); font-size:13px; font-weight:600;
+  border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  transition:background .12s, border-color .12s, transform .08s;
+}
+.btn:hover{background:var(--surface-2)}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+.btn-primary:hover{background:var(--ink-2); border-color:var(--ink-2)}
+.btn-ghost{border-color:transparent; background:transparent; color:var(--muted)}
+.btn-ghost:hover{background:var(--surface-2); color:var(--ink)}
+.btn-sm{padding:5px 10px; font-size:12px}
+.btn-danger{color:var(--bad); border-color:transparent}
+.btn-danger:hover{background:var(--bad-soft)}
+.btn[disabled]{opacity:.4; cursor:not-allowed}
+
+.field{position:relative; display:flex; align-items:center}
+.field svg{position:absolute; left:10px; color:var(--faint); pointer-events:none}
+.input,.select,.textarea{
+  width:100%; padding:8px 11px; border-radius:var(--r);
+  border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  font-size:13.5px; transition:border-color .12s, box-shadow .12s;
+}
+.input:focus,.select:focus,.textarea:focus{
+  outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);
+}
+.field .input{padding-left:31px}
+.textarea{resize:vertical; min-height:64px; line-height:1.5}
+.select{appearance:none; padding-right:28px; cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);
+  background-position:calc(100% - 15px) 51%, calc(100% - 10px) 51%;
+  background-size:5px 5px,5px 5px; background-repeat:no-repeat;
+}
+.input.num,.select.num{font-family:var(--mono)}
+.searchbox{width:260px}
+
+/* ============ CARDS ============ */
+.card{background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow)}
+.card-head{display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid var(--line-2)}
+.card-head h3{font-size:14px}
+.card-head .lbl{margin-left:auto}
+
+/* ============ KPI ============ */
+.kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px}
+.kpi{
+  background:var(--surface); border:1px solid var(--line); border-radius:12px;
+  padding:14px 16px 15px; box-shadow:var(--shadow);
+  display:flex; flex-direction:column; gap:7px; position:relative; overflow:hidden;
+}
+.kpi::before{content:""; position:absolute; inset:0 auto 0 0; width:3px; background:var(--bar,var(--line))}
+.kpi-val{font-family:var(--mono); font-size:26px; font-weight:600; letter-spacing:-.03em; line-height:1; font-variant-numeric:tabular-nums}
+.kpi-val small{font-size:13px; font-weight:500; color:var(--muted); letter-spacing:0}
+.kpi-foot{font-size:11.5px; color:var(--muted); line-height:1.4}
+.kpi-foot b{color:var(--ink); font-weight:600}
+
+/* ============ TABLE ============ */
+.tablewrap{overflow-x:auto}
+table{width:100%; border-collapse:collapse; font-size:13px}
+thead th{
+  text-align:left; padding:9px 14px; border-bottom:1px solid var(--line);
+  font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--faint); font-weight:500; white-space:nowrap; background:var(--surface);
+}
+tbody td{padding:11px 14px; border-bottom:1px solid var(--line-2); vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{cursor:pointer; transition:background .1s}
+tbody tr:hover{background:var(--surface-2)}
+.t-right{text-align:right}
+.t-nowrap{white-space:nowrap}
+.jobname{font-weight:600; color:var(--ink); display:block; margin-bottom:2px; line-height:1.3}
+.jobcode{font-family:var(--mono); font-size:10.5px; color:var(--faint); letter-spacing:.02em}
+.cust{color:var(--ink-2); line-height:1.3}
+.cust small{display:block; color:var(--faint); font-size:11px}
+.empty{padding:44px 20px; text-align:center; color:var(--muted)}
+.empty strong{display:block; color:var(--ink); font-size:14px; margin-bottom:4px}
+
+/* ============ STATUS + PIPELINE ============ */
+.chip{
+  display:inline-flex; align-items:center; gap:6px; padding:3px 9px 3px 7px;
+  border-radius:999px; font-size:11.5px; font-weight:600; white-space:nowrap;
+  background:var(--surface-2); color:var(--ink-2); border:1px solid var(--line);
+}
+.chip .dot{width:6px; height:6px; border-radius:50%; background:currentColor; flex:0 0 6px}
+.chip.ph-c{color:var(--c); background:color-mix(in srgb,var(--c) 10%,transparent); border-color:color-mix(in srgb,var(--c) 26%,transparent)}
+.chip.ph-m{color:var(--m); background:color-mix(in srgb,var(--m) 10%,transparent); border-color:color-mix(in srgb,var(--m) 26%,transparent)}
+.chip.ph-y{color:var(--y); background:color-mix(in srgb,var(--y) 12%,transparent); border-color:color-mix(in srgb,var(--y) 28%,transparent)}
+.chip.ph-k{color:var(--k); background:color-mix(in srgb,var(--k) 10%,transparent); border-color:color-mix(in srgb,var(--k) 24%,transparent)}
+.chip.ph-done{color:var(--ok); background:var(--ok-soft); border-color:color-mix(in srgb,var(--ok) 26%,transparent)}
+.chip.ph-hold{color:var(--warn); background:var(--warn-soft); border-color:color-mix(in srgb,var(--warn) 28%,transparent)}
+.chip.ph-cancel{color:var(--bad); background:var(--bad-soft); border-color:color-mix(in srgb,var(--bad) 26%,transparent)}
+.chip.due-late{color:var(--bad); background:var(--bad-soft); border-color:color-mix(in srgb,var(--bad) 26%,transparent)}
+.chip.due-soon{color:var(--warn); background:var(--warn-soft); border-color:color-mix(in srgb,var(--warn) 28%,transparent)}
+
+/* CMYK phase strip — 4 segments: prepress / press / finishing / delivery */
+.pipe{display:flex; gap:2px; width:96px}
+.pipe i{height:4px; flex:1; border-radius:2px; background:var(--line); transition:background .2s}
+.pipe i.on-c{background:var(--c)} .pipe i.on-m{background:var(--m)}
+.pipe i.on-y{background:var(--y)} .pipe i.on-k{background:var(--k)}
+.pipe.is-half i.cur{opacity:.45}
+.pipe-lg{width:100%; gap:3px}
+.pipe-lg i{height:6px; border-radius:3px}
+.pipe-key{display:flex; gap:3px; margin-top:8px}
+.pipe-key span{flex:1; font-family:var(--mono); font-size:9.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint)}
+
+/* money */
+.money{font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+.money-due{color:var(--bad); font-weight:600}
+.money-ok{color:var(--ok)}
+.money-zero{color:var(--faint)}
+
+/* avatars */
+.people{display:flex; align-items:center; gap:-4px}
+.av{
+  width:24px; height:24px; border-radius:50%; display:grid; place-items:center;
+  font-family:var(--mono); font-size:9.5px; font-weight:600; letter-spacing:.02em;
+  border:1.5px solid var(--surface); color:#fff; flex:0 0 24px;
+}
+.av+.av{margin-left:-7px}
+.people-names{margin-left:8px; color:var(--ink-2); font-size:12.5px}
+
+/* ============ ATTENTION LIST ============ */
+.alist{display:flex; flex-direction:column}
+.arow{
+  display:flex; align-items:center; gap:12px; padding:11px 16px;
+  border-bottom:1px solid var(--line-2); cursor:pointer; text-align:left; width:100%;
+  transition:background .1s;
+}
+.arow:last-child{border-bottom:none}
+.arow:hover{background:var(--surface-2)}
+.arow-bar{width:3px; align-self:stretch; border-radius:2px; flex:0 0 3px}
+.arow-main{min-width:0; flex:1}
+.arow-main b{display:block; font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.arow-main span{font-size:11.5px; color:var(--muted)}
+
+/* ============ DRAWER ============ */
+.scrim{
+  position:fixed; inset:0; background:rgba(16,18,21,.42); backdrop-filter:blur(2px);
+  opacity:0; pointer-events:none; transition:opacity .22s; z-index:40;
+}
+.scrim.open{opacity:1; pointer-events:auto}
+.drawer{
+  position:fixed; top:0; right:0; bottom:0; width:min(560px,100%);
+  background:var(--surface); border-left:1px solid var(--line); box-shadow:var(--shadow-lg);
+  transform:translateX(101%); transition:transform .26s cubic-bezier(.32,.72,0,1);
+  z-index:50; display:flex; flex-direction:column;
+}
+.drawer.open{transform:none}
+.drawer-head{
+  display:flex; align-items:flex-start; gap:12px; padding:18px 20px 15px;
+  border-bottom:1px solid var(--line); flex:0 0 auto;
+}
+.drawer-head h2{font-size:16.5px; line-height:1.3}
+.drawer-head .jobcode{display:block; margin-top:3px}
+.drawer-body{overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:22px; flex:1}
+.drawer-foot{
+  display:flex; align-items:center; gap:8px; padding:14px 20px;
+  border-top:1px solid var(--line); background:var(--surface-2); flex:0 0 auto;
+}
+.drawer-foot .btn-primary{margin-left:auto}
+
+.fieldset{display:flex; flex-direction:column; gap:11px}
+.fieldset > .lbl{padding-bottom:2px; border-bottom:1px solid var(--line-2)}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:11px}
+.grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:11px}
+label.f{display:flex; flex-direction:column; gap:5px}
+label.f > span{font-size:11.5px; font-weight:600; color:var(--ink-2)}
+label.f > span em{font-style:normal; color:var(--faint); font-weight:500}
+.hint{font-size:11px; color:var(--faint); line-height:1.45}
+.err{font-size:11.5px; color:var(--bad); font-weight:500}
+.input.bad,.select.bad{border-color:var(--bad); box-shadow:0 0 0 3px var(--bad-soft)}
+
+.calc{
+  display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+  padding:11px 13px; border-radius:var(--r); background:var(--surface-2); border:1px solid var(--line);
+}
+.calc-val{font-family:var(--mono); font-size:19px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+
+/* staff multi-select */
+.picks{display:flex; flex-wrap:wrap; gap:7px}
+.pick{
+  display:inline-flex; align-items:center; gap:7px; padding:5px 11px 5px 5px;
+  border-radius:999px; border:1px solid var(--line); background:var(--surface);
+  font-size:12.5px; font-weight:500; transition:border-color .12s, background .12s;
+}
+.pick:hover{background:var(--surface-2)}
+.pick[aria-pressed="true"]{border-color:var(--accent); background:var(--accent-soft); color:var(--accent); font-weight:600}
+.pick[disabled]{opacity:.38; cursor:not-allowed}
+
+/* detail view */
+.dl{display:grid; grid-template-columns:118px 1fr; gap:9px 14px; align-items:baseline}
+.dl dt{font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--faint)}
+.dl dd{margin:0; font-size:13.5px; color:var(--ink)}
+.dl dd.muted{color:var(--muted)}
+.ledger{display:flex; flex-direction:column; gap:0; border:1px solid var(--line); border-radius:var(--r); overflow:hidden}
+.ledger-row{display:flex; align-items:center; gap:10px; padding:10px 13px; border-bottom:1px solid var(--line-2); font-size:13px}
+.ledger-row:last-child{border-bottom:none}
+.ledger-row .money{margin-left:auto}
+.ledger-row.total{background:var(--surface-2); font-weight:600}
+.ledger-row small{color:var(--faint); font-size:11px; font-family:var(--mono)}
+
+/* stage stepper in detail */
+.stages{display:flex; flex-wrap:wrap; gap:5px}
+.stage-btn{
+  padding:5px 10px; border-radius:999px; border:1px solid var(--line);
+  font-size:11.5px; font-weight:500; color:var(--muted); background:var(--surface);
+  transition:all .12s;
+}
+.stage-btn:hover{background:var(--surface-2); color:var(--ink)}
+.stage-btn.done{color:var(--ink-2); border-color:var(--line)}
+.stage-btn.active{background:var(--ink); color:var(--paper); border-color:var(--ink); font-weight:600}
+
+/* ============ TOOLBAR / FILTERS ============ */
+.toolbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.tabs{display:flex; gap:2px; background:var(--surface-2); padding:3px; border-radius:var(--r)}
+.tabs button{
+  padding:5px 11px; border-radius:6px; font-size:12.5px; font-weight:500; color:var(--muted);
+  transition:background .12s,color .12s;
+}
+.tabs button[aria-pressed="true"]{background:var(--surface); color:var(--ink); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.tabs .n{font-family:var(--mono); font-size:10.5px; opacity:.6; margin-left:4px}
+
+/* ============ TOAST ============ */
+.toast{
+  position:fixed; bottom:22px; left:50%; transform:translate(-50%,14px);
+  background:var(--ink); color:var(--paper); padding:9px 16px; border-radius:999px;
+  font-size:13px; font-weight:500; box-shadow:var(--shadow-lg);
+  opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:80;
+}
+.toast.show{opacity:1; transform:translate(-50%,0)}
+
+/* ============ DEMO BANNER ============ */
+.demobar{
+  display:flex; align-items:center; gap:9px; padding:8px 28px;
+  background:var(--accent-soft); color:var(--accent);
+  font-size:12px; font-weight:500; border-bottom:1px solid color-mix(in srgb,var(--accent) 20%,transparent);
+}
+.demobar b{font-weight:700}
+.demobar button{margin-left:auto; font-size:11.5px; font-weight:600; color:inherit; text-decoration:underline; text-underline-offset:2px}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width:900px){
+  :root{--rail:60px}
+  .rail{padding:14px 8px; align-items:center}
+  .brand-text,.nav-item span,.nav-count,.role-note{display:none}
+  .brand{padding:2px 0 16px; justify-content:center}
+  .nav-item{justify-content:center; padding:9px}
+  .role{flex-direction:column}
+  .role button{font-size:10px; padding:5px 2px}
+  .topbar,.demobar{padding-left:18px; padding-right:18px}
+  .content{padding:18px 18px 56px}
+  .searchbox{width:150px}
+  .grid3{grid-template-columns:1fr}
+}
+@media (max-width:560px){
+  .grid2{grid-template-columns:1fr}
+  .dl{grid-template-columns:1fr; gap:2px 0}
+  .dl dd{margin-bottom:8px}
+}
+</style>
+
+<div class="app">
+  <aside class="rail">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+        <circle cx="13" cy="13" r="7.5" fill="none" stroke="var(--c)" stroke-width="1.4" opacity=".9"/>
+        <circle cx="13" cy="13" r="4.2" fill="none" stroke="var(--m)" stroke-width="1.4" opacity=".9"/>
+        <circle cx="13" cy="13" r="1.5" fill="var(--y)"/>
+        <path d="M13 1v5.2M13 19.8V25M1 13h5.2M19.8 13H25" stroke="var(--k)" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      <div class="brand-text">
+        <div class="brand-name">PressTrack</div>
+        <div class="brand-sub">Job Register</div>
+      </div>
+    </div>
+
+    <nav class="nav" id="nav"></nav>
+
+    <div class="rail-foot">
+      <div class="role" role="group" aria-label="Switch view">
+        <button id="role-shop" aria-pressed="true">Shop</button>
+        <button id="role-owner" aria-pressed="false">Owner</button>
+      </div>
+      <p class="role-note" id="roleNote">Shop staff — full edit access.</p>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="demobar">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M8 4.6v4M8 11.2v.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <span><b>Demo preview</b> — sample data only. Everything you add saves in this browser. Nothing is sent anywhere.</span>
+      <button id="resetDemo">Reset demo data</button>
+    </div>
+
+    <header class="topbar">
+      <div>
+        <h1 id="pageTitle">Dashboard</h1>
+        <p class="topbar-sub" id="pageSub"></p>
+      </div>
+      <div class="topbar-actions" id="pageActions"></div>
+    </header>
+
+    <div class="content" id="view"></div>
+  </main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-hidden="true"></aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ===================== CONSTANTS ===================== */
+
+// Four production phases, mapped to the CMYK process inks.
+const PHASES = [
+  {id:"prepress",  key:"c", label:"Prepress"},
+  {id:"press",     key:"m", label:"Press"},
+  {id:"finishing", key:"y", label:"Finishing"},
+  {id:"delivery",  key:"k", label:"Delivery"}
+];
+
+// Print-shop stages in the order a job actually moves through the floor.
+const STAGES = [
+  {id:"design",     label:"Design",             phase:"prepress"},
+  {id:"approval",   label:"Proof Approval",     phase:"prepress"},
+  {id:"prepress",   label:"Pre-press / Plates", phase:"prepress"},
+  {id:"printing",   label:"Printing",           phase:"press"},
+  {id:"lamination", label:"Lamination",         phase:"press"},
+  {id:"cutting",    label:"Cutting",            phase:"finishing"},
+  {id:"finishing",  label:"Binding / Finishing",phase:"finishing"},
+  {id:"qc",         label:"Quality Check",      phase:"finishing"},
+  {id:"ready",      label:"Ready for Handover", phase:"delivery"},
+  {id:"delivered",  label:"Handed Over",        phase:"delivery"},
+  {id:"completed",  label:"Completed",          phase:"delivery"}
+];
+const EXCEPTIONS = [
+  {id:"hold",      label:"On Hold"},
+  {id:"cancelled", label:"Cancelled"}
+];
+const ALL_STATUSES = STAGES.concat(EXCEPTIONS);
+
+const AV_COLORS = ["#0F7B9C","#C2185B","#5B6E2F","#8A4B1F","#4B4FA6","#1F7A4D","#9C4A0F"];
+
+const TODAY = "2026-08-05"; // fixed "today" so the demo always reads the same
+
+/* ===================== SEED DATA ===================== */
+
+function seed(){ return {
+  staff:[
+    {id:"s1", name:"Nuwan Perera",     role:"Press Operator",   phone:"077 214 5566", active:true},
+    {id:"s2", name:"Ishara Fernando",  role:"Graphic Designer", phone:"071 883 4102", active:true},
+    {id:"s3", name:"Sanjeewa Silva",   role:"Finishing / Cutting", phone:"076 330 9218", active:true},
+    {id:"s4", name:"Dilani Jayasuriya",role:"Front Office",     phone:"070 445 7781", active:true},
+    {id:"s5", name:"Rukshan Bandara",  role:"Delivery",         phone:"078 902 1140", active:true}
+  ],
+  customers:[
+    {id:"c1", name:"Kasun Rajapaksha", company:"Ceylon Fresh Exports (Pvt) Ltd", phone:"011 271 4400", email:"kasun@ceylonfresh.lk", note:"Export cartons — always needs food-grade ink certificate."},
+    {id:"c2", name:"Hasini Gunawardena", company:"", phone:"077 452 3311", email:"", note:"Wedding — proof approval by WhatsApp."},
+    {id:"c3", name:"Dr. Rasika Wijesinghe", company:"Colombo Dental Care", phone:"011 259 8877", email:"info@colombodental.lk", note:""},
+    {id:"c4", name:"Thilina Amarasinghe", company:"Hexa Digital (Pvt) Ltd", phone:"011 430 2255", email:"accounts@hexadigital.lk", note:"Pays by cheque, 30 days. Follow up."},
+    {id:"c5", name:"Rev. Fr. Nishantha", company:"St. Anthony's College", phone:"081 222 6690", email:"", note:"School orders — PO required before start."},
+    {id:"c6", name:"Malini Seneviratne", company:"Serendib Tea Company", phone:"011 268 1122", email:"malini@serendibtea.lk", note:"Repeat label orders every quarter."},
+    {id:"c7", name:"Ruwan Dissanayake", company:"Ruwan Cabs", phone:"075 611 4408", email:"", note:""},
+    {id:"c8", name:"Nimal Weerasinghe", company:"Nimal Stores", phone:"011 289 3374", email:"", note:"Walk-in. Cash only."},
+    {id:"c9", name:"Ayesha Marikkar", company:"Sea Breeze Restaurant", phone:"091 224 7712", email:"", note:""}
+  ],
+  jobs:[
+    {id:"j1", code:"JOB-2026-0129", name:"Annual Report 2025/26 — 300 books",
+     customerId:"c4", phone:"", startDate:"2026-06-18", dueDate:"2026-07-28", assigned:["s2","s1"],
+     status:"delivered", total:295000, advance:150000, advanceDate:"2026-06-18",
+     handoverDate:"2026-07-30", finalAmount:0, finalDate:"",
+     notes:"Perfect bound, 120 pages, 170gsm art paper. Delivered to Colombo 03 office."},
+
+    {id:"j2", code:"JOB-2026-0141", name:"Export carton boxes — 5,000 units",
+     customerId:"c1", phone:"", startDate:"2026-07-28", dueDate:"2026-08-14", assigned:["s1","s3"],
+     status:"printing", total:425000, advance:200000, advanceDate:"2026-07-28",
+     handoverDate:"", finalAmount:0, finalDate:"",
+     notes:"3-colour offset on 300gsm duplex board. Die-cut after printing."},
+
+    {id:"j3", code:"JOB-2026-0138", name:"Wedding invitation cards — 250 pcs",
+     customerId:"c2", phone:"077 452 3311", startDate:"2026-07-22", dueDate:"2026-08-08", assigned:["s2","s3"],
+     status:"finishing", total:68500, advance:30000, advanceDate:"2026-07-22",
+     handoverDate:"", finalAmount:0, finalDate:"",
+     notes:"Gold foil + emboss. Envelope printing included. Bride approved proof v3."},
+
+    {id:"j4", code:"JOB-2026-0143", name:"Sports meet banners ×6 (8ft × 3ft)",
+     customerId:"c5", phone:"", startDate:"2026-08-03", dueDate:"2026-08-11", assigned:["s2"],
+     status:"design", total:54000, advance:0, advanceDate:"",
+     handoverDate:"", finalAmount:0, finalDate:"",
+     notes:"PO received. Waiting on house colours from the sports master."},
+
+    {id:"j5", code:"JOB-2026-0142", name:"Business cards — 4 staff, 500 each",
+     customerId:"c3", phone:"", startDate:"2026-08-01", dueDate:"2026-08-07", assigned:["s2"],
+     status:"approval", total:9500, advance:9500, advanceDate:"2026-08-01",
+     handoverDate:"", finalAmount:0, finalDate:"",
+     notes:"Matt lamination both sides, 350gsm. Paid upfront."},
+
+    {id:"j6", code:"JOB-2026-0136", name:"Restaurant menu cards — 40 sets",
+     customerId:"c9", phone:"", startDate:"2026-07-30", dueDate:"2026-08-09", assigned:["s1","s3"],
+     status:"lamination", total:47500, advance:20000, advanceDate:"2026-07-30",
+     handoverDate:"", finalAmount:0, finalDate:"",
+     notes:"A3 folded, gloss lamination for wipe-clean."},
+
+    {id:"j7", code:"JOB-2026-0140", name:"Letterheads 2,000 + envelopes 1,000",
+     customerId:"c8", phone:"", startDate:"2026-07-31", dueDate:"2026-08-06", assigned:["s1"],
+     status:"cutting", total:38000, advance:15000, advanceDate:"2026-07-31",
+     handoverDate:"", finalAmount:0, finalDate:"",
+     notes:"80gsm offset paper. Customer collecting from shop."},
+
+    {id:"j8", code:"JOB-2026-0133", name:"X-banner stands ×4",
+     customerId:"c4", phone:"", startDate:"2026-07-24", dueDate:"2026-08-04", assigned:["s2","s5"],
+     status:"ready", total:32000, advance:32000, advanceDate:"2026-07-24",
+     handoverDate:"", finalAmount:0, finalDate:"",
+     notes:"Ready since Monday. Call Thilina to arrange pickup."},
+
+    {id:"j9", code:"JOB-2026-0144", name:"Vehicle sticker branding — 3 cabs",
+     customerId:"c7", phone:"", startDate:"2026-08-04", dueDate:"2026-08-13", assigned:["s2","s3"],
+     status:"prepress", total:76000, advance:25000, advanceDate:"2026-08-04",
+     handoverDate:"", finalAmount:0, finalDate:"",
+     notes:"Cast vinyl, 5-year outdoor. Measurements taken on site."},
+
+    {id:"j10", code:"JOB-2026-0125", name:"Tea labels 500g — 12,000 stickers",
+     customerId:"c6", phone:"", startDate:"2026-06-02", dueDate:"2026-06-24", assigned:["s1","s3"],
+     status:"completed", total:186000, advance:90000, advanceDate:"2026-06-02",
+     handoverDate:"2026-06-23", finalAmount:96000, finalDate:"2026-06-26",
+     notes:"Q3 batch. Q4 reorder expected around September."},
+
+    {id:"j11", code:"JOB-2026-0119", name:"A4 tri-fold brochures — 2,000",
+     customerId:"c1", phone:"", startDate:"2026-05-12", dueDate:"2026-05-29", assigned:["s2","s1"],
+     status:"completed", total:112000, advance:50000, advanceDate:"2026-05-12",
+     handoverDate:"2026-05-28", finalAmount:62000, finalDate:"2026-05-28",
+     notes:"Settled in full on handover."},
+
+    {id:"j12", code:"JOB-2026-0137", name:"2027 desk diaries — sample set",
+     customerId:"c4", phone:"", startDate:"2026-07-26", dueDate:"2026-08-20", assigned:["s2"],
+     status:"hold", total:45000, advance:0, advanceDate:"",
+     handoverDate:"", finalAmount:0, finalDate:"",
+     notes:"On hold — customer reviewing budget. Follow up mid-August."}
+  ],
+  nextJobNo:145
+};}
+
+/* ===================== STATE ===================== */
+
+const KEY = "presstrack.demo.v1";
+let db, route="dashboard", role="shop";
+let filter={q:"", tab:"active"};
+
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(raw){ db = JSON.parse(raw); return; }
+  }catch(e){ /* private mode / corrupt data — fall through to seed */ }
+  db = seed();
+}
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(db)); }
+  catch(e){ /* storage unavailable — demo still works for this session */ }
+}
+
+/* ===================== HELPERS ===================== */
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const uid = p => p + Math.random().toString(36).slice(2,9);
+
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmtDate(iso){
+  if(!iso) return "—";
+  const p = iso.split("-");
+  if(p.length!==3) return iso;
+  return p[2] + " " + MONTHS[+p[1]-1] + " " + p[0];
+}
+function daysBetween(a,b){
+  return Math.round((Date.parse(b+"T00:00:00") - Date.parse(a+"T00:00:00")) / 86400000);
+}
+function money(n){
+  const v = Number(n)||0;
+  return "Rs " + v.toLocaleString("en-US", {maximumFractionDigits:0});
+}
+function initials(name){
+  const parts = String(name).trim().split(/\s+/);
+  return ((parts[0]||"")[0] || "") + ((parts[1]||"")[0] || "");
+}
+function avColor(id){
+  let h=0; for(let i=0;i<id.length;i++) h = (h*31 + id.charCodeAt(i)) >>> 0;
+  return AV_COLORS[h % AV_COLORS.length];
+}
+
+const staffById = id => db.staff.find(s=>s.id===id);
+const custById  = id => db.customers.find(c=>c.id===id);
+const statusMeta = id => ALL_STATUSES.find(s=>s.id===id) || {id:id,label:id};
+
+function jobPhone(j){
+  if(j.phone) return j.phone;
+  const c = custById(j.customerId);
+  return c ? c.phone : "";
+}
+function paid(j){ return (Number(j.advance)||0) + (Number(j.finalAmount)||0); }
+function balance(j){ return Math.max(0, (Number(j.total)||0) - paid(j)); }
+function isClosed(j){ return j.status==="completed" || j.status==="cancelled"; }
+// "On the floor" = work still physically in the shop. A handed-over job is done,
+// even if the money hasn't come in yet — that's a payment problem, not a production one.
+function isActive(j){ return !isClosed(j) && j.status!=="hold" && j.status!=="delivered"; }
+function plural(n, word){ return n + " " + word + (n===1 ? "" : "s"); }
+
+function phaseOf(status){
+  const s = STAGES.find(x=>x.id===status);
+  return s ? s.phase : null;
+}
+function phaseIndex(status){
+  const p = phaseOf(status);
+  return p ? PHASES.findIndex(x=>x.id===p) : -1;
+}
+function chipClass(status){
+  if(status==="completed") return "ph-done";
+  if(status==="hold") return "ph-hold";
+  if(status==="cancelled") return "ph-cancel";
+  const p = PHASES.find(x=>x.id===phaseOf(status));
+  return p ? "ph-"+p.key : "";
+}
+
+/* Due-date state: overdue, due soon (<=3 days), or fine. */
+function dueState(j){
+  // Only meaningful while the job is still in the shop — once it's handed over,
+  // the deadline stopped mattering.
+  if(!isActive(j) || !j.dueDate) return null;
+  const d = daysBetween(TODAY, j.dueDate);
+  if(d < 0)  return {cls:"due-late", text:Math.abs(d)+"d late"};
+  if(d === 0) return {cls:"due-late", text:"Due today"};
+  if(d <= 3) return {cls:"due-soon", text:"in "+d+"d"};
+  return null;
+}
+
+function pipeHTML(status, big){
+  const idx = phaseIndex(status);
+  const done = status==="completed";
+  let cells = "";
+  for(let i=0;i<4;i++){
+    let cls = "";
+    if(done) cls = "on-"+PHASES[i].key;
+    else if(idx>-1 && i<idx) cls = "on-"+PHASES[i].key;
+    else if(idx>-1 && i===idx) cls = "on-"+PHASES[i].key+" cur";
+    cells += '<i class="'+cls+'"></i>';
+  }
+  const half = (!done && idx>-1) ? " is-half" : "";
+  return '<div class="pipe'+(big?" pipe-lg":"")+half+'" role="img" aria-label="'+esc(statusMeta(status).label)+'">'+cells+'</div>';
+}
+
+function peopleHTML(ids, withNames){
+  if(!ids || !ids.length) return '<span class="money-zero">—</span>';
+  let h = '<div class="people">';
+  ids.forEach(function(id){
+    const s = staffById(id);
+    if(!s) return;
+    h += '<span class="av" style="background:'+avColor(s.id)+'" title="'+esc(s.name)+'">'+esc(initials(s.name))+'</span>';
+  });
+  if(withNames){
+    const names = ids.map(function(id){ const s=staffById(id); return s?s.name:null; }).filter(Boolean).join(", ");
+    h += '<span class="people-names">'+esc(names)+'</span>';
+  }
+  return h + '</div>';
+}
+
+function toast(msg){
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function(){ t.classList.remove("show"); }, 2200);
+}
+
+const canEdit = () => role === "shop";
+
+/* ===================== ICONS ===================== */
+const ICONS = {
+  dashboard:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="6.5" rx="1"/><rect x="9" y="2" width="5" height="4" rx="1"/><rect x="2" y="10.5" width="5" height="3.5" rx="1"/><rect x="9" y="8" width="5" height="6" rx="1"/></svg>',
+  jobs:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2.5h7l3 3V13a.5.5 0 0 1-.5.5h-9A.5.5 0 0 1 3 13V3a.5.5 0 0 1 .5-.5Z"/><path d="M9.5 2.5v3.2h3.2M5.5 9h5M5.5 11.2h3"/></svg>',
+  customers:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5.5" r="2.6"/><path d="M2.8 13.5c0-2.6 2.3-4.2 5.2-4.2s5.2 1.6 5.2 4.2"/></svg>',
+  team:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5.5" r="2.3"/><path d="M1.8 13.4c0-2.4 1.9-3.8 4.2-3.8s4.2 1.4 4.2 3.8"/><path d="M10.6 3.5a2.3 2.3 0 0 1 0 4.4M11.6 9.9c1.6.3 2.6 1.5 2.6 3.5"/></svg>',
+  money:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.8" y="3.5" width="12.4" height="9" rx="1.5"/><circle cx="8" cy="8" r="2"/><path d="M4.3 8h.01M11.7 8h.01"/></svg>',
+  plus:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg>',
+  search:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.3"/><path d="m10.3 10.3 3 3" stroke-linecap="round"/></svg>',
+  close:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>'
+};
+
+/* ===================== NAV ===================== */
+
+const PAGES = [
+  {id:"dashboard", label:"Dashboard", icon:"dashboard"},
+  {id:"jobs",      label:"Jobs",      icon:"jobs"},
+  {id:"payments",  label:"Payments",  icon:"money"},
+  {id:"customers", label:"Customers", icon:"customers"},
+  {id:"team",      label:"Team",      icon:"team"}
+];
+
+function renderNav(){
+  const counts = {
+    jobs: db.jobs.filter(isActive).length,
+    payments: db.jobs.filter(function(j){ return !isClosed(j) && balance(j)>0; }).length,
+    customers: db.customers.length,
+    team: db.staff.filter(function(s){ return s.active; }).length
+  };
+  $("#nav").innerHTML = PAGES.map(function(p){
+    const n = counts[p.id];
+    return '<button class="nav-item" data-nav="'+p.id+'"'+(route===p.id?' aria-current="page"':'')+'>'
+      + ICONS[p.icon] + '<span>'+p.label+'</span>'
+      + (n!==undefined ? '<span class="nav-count">'+n+'</span>' : '')
+      + '</button>';
+  }).join("");
+}
+
+/* ===================== DASHBOARD ===================== */
+
+function renderDashboard(){
+  const active   = db.jobs.filter(isActive);
+  const overdue  = active.filter(function(j){ return j.dueDate && daysBetween(TODAY, j.dueDate) < 0; });
+  const dueSoon  = active.filter(function(j){ const d = j.dueDate ? daysBetween(TODAY,j.dueDate) : 99; return d>=0 && d<=3; });
+  const awaiting = db.jobs.filter(function(j){ return j.status==="ready"; });
+  const owing    = db.jobs.filter(function(j){ return !isClosed(j) && balance(j)>0; });
+  const outstanding = owing.reduce(function(s,j){ return s+balance(j); }, 0);
+  const collected = db.jobs.reduce(function(s,j){ return s+paid(j); }, 0);
+
+  // Attention rows, most urgent reason first. A job can qualify more than once
+  // (late AND unpaid) — it should still appear once, under its worst problem.
+  const attention = [];
+  const flagged = {};
+  function flag(j, color, sub){
+    if(flagged[j.id]) return;
+    flagged[j.id] = true;
+    attention.push({job:j, color:color, title:j.name, sub:sub});
+  }
+  db.jobs.filter(function(j){ return j.status==="delivered" && balance(j)>0; }).forEach(function(j){
+    flag(j, "var(--bad)", "Handed over "+fmtDate(j.handoverDate)+" · "+money(balance(j))+" still unpaid");
+  });
+  overdue.forEach(function(j){
+    flag(j, "var(--bad)", "Deadline passed "+plural(Math.abs(daysBetween(TODAY,j.dueDate)),"day")+" ago · still in "+statusMeta(j.status).label);
+  });
+  awaiting.forEach(function(j){
+    flag(j, "var(--k)", "Finished and waiting for customer collection");
+  });
+  dueSoon.forEach(function(j){
+    flag(j, "var(--warn)", "Due "+fmtDate(j.dueDate)+" · currently in "+statusMeta(j.status).label);
+  });
+
+  // Workload per phase
+  const byPhase = PHASES.map(function(p){
+    return {p:p, n:active.filter(function(j){ return phaseOf(j.status)===p.id; }).length};
+  });
+  const maxPhase = Math.max(1, Math.max.apply(null, byPhase.map(function(x){return x.n;})));
+
+  const recent = db.jobs.slice().sort(function(a,b){
+    return (b.startDate||"").localeCompare(a.startDate||"");
+  }).slice(0,6);
+
+  $("#view").innerHTML =
+    '<section class="kpis">'
+    + kpi("Jobs on the floor", active.length, "", "var(--c)",
+        overdue.length ? '<b>'+overdue.length+' past deadline</b> · '+dueSoon.length+' due within 3 days'
+                       : dueSoon.length+' due within 3 days')
+    + kpi("Ready for handover", awaiting.length, "", "var(--k)",
+        awaiting.length ? 'Finished work sitting in the shop' : 'Nothing waiting')
+    + kpi("Money still owed", money(outstanding), "", "var(--bad)",
+        'Across <b>'+owing.length+'</b> unsettled jobs')
+    + kpi("Collected to date", money(collected), "", "var(--ok)",
+        'All advances and final payments')
+    + '</section>'
+
+    + '<div style="display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:20px" class="dash-split">'
+
+      + '<section class="card">'
+        + '<div class="card-head"><h3>Needs attention</h3><span class="lbl">'+attention.length+' items</span></div>'
+        + (attention.length
+            ? '<div class="alist">' + attention.slice(0,7).map(function(a){
+                return '<button class="arow" data-job="'+a.job.id+'">'
+                  + '<span class="arow-bar" style="background:'+a.color+'"></span>'
+                  + '<span class="arow-main"><b>'+esc(a.title)+'</b><span>'+a.sub+'</span></span>'
+                  + '<span class="chip '+chipClass(a.job.status)+'"><span class="dot"></span>'+esc(statusMeta(a.job.status).label)+'</span>'
+                  + '</button>';
+              }).join("") + '</div>'
+            : '<div class="empty"><strong>All clear</strong>Nothing overdue and no unpaid handovers.</div>')
+      + '</section>'
+
+      + '<section class="card">'
+        + '<div class="card-head"><h3>Where the work is</h3><span class="lbl">CMYK phases</span></div>'
+        + '<div style="padding:16px;display:flex;flex-direction:column;gap:14px">'
+        + byPhase.map(function(x){
+            const pct = Math.round(x.n / maxPhase * 100);
+            return '<div>'
+              + '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">'
+                + '<span style="font-size:13px;font-weight:600">'+x.p.label+'</span>'
+                + '<span class="num" style="margin-left:auto;font-size:13px;font-weight:600">'+x.n+'</span>'
+                + '<span class="lbl">jobs</span>'
+              + '</div>'
+              + '<div style="height:6px;border-radius:3px;background:var(--line-2);overflow:hidden">'
+                + '<div style="height:100%;width:'+pct+'%;border-radius:3px;background:var(--'+x.p.key+')"></div>'
+              + '</div>'
+            + '</div>';
+          }).join("")
+        + '<p class="hint" style="margin-top:2px">Every job moves left to right through the four phases. The colours match the process inks — cyan, magenta, yellow, key.</p>'
+        + '</div>'
+      + '</section>'
+    + '</div>'
+
+    + '<section class="card">'
+      + '<div class="card-head"><h3>Latest jobs</h3>'
+        + '<button class="btn btn-sm btn-ghost" data-nav="jobs" style="margin-left:auto">View all '+db.jobs.length+' →</button></div>'
+      + jobTable(recent)
+    + '</section>';
+
+  // Responsive: collapse the split on narrow screens
+  const split = document.querySelector(".dash-split");
+  if(split && window.innerWidth < 1000) split.style.gridTemplateColumns = "1fr";
+}
+
+function kpi(label, value, unit, bar, foot){
+  return '<article class="kpi" style="--bar:'+bar+'">'
+    + '<span class="lbl">'+label+'</span>'
+    + '<span class="kpi-val">'+value+(unit?'<small> '+unit+'</small>':'')+'</span>'
+    + '<span class="kpi-foot">'+foot+'</span>'
+    + '</article>';
+}
+
+/* ===================== JOBS ===================== */
+
+function jobTable(list){
+  if(!list.length){
+    return '<div class="empty"><strong>No jobs here</strong>Try a different filter, or add a new job.</div>';
+  }
+  return '<div class="tablewrap"><table><thead><tr>'
+    + '<th>Job</th><th>Customer</th><th>Assigned</th><th>Progress</th><th>Status</th>'
+    + '<th class="t-right">Total</th><th class="t-right">Balance</th><th class="t-nowrap">Deadline</th>'
+    + '</tr></thead><tbody>'
+    + list.map(function(j){
+        const c = custById(j.customerId);
+        const bal = balance(j);
+        const due = dueState(j);
+        return '<tr data-job="'+j.id+'">'
+          + '<td style="min-width:200px"><span class="jobname">'+esc(j.name)+'</span><span class="jobcode">'+esc(j.code)+'</span></td>'
+          + '<td style="min-width:150px"><span class="cust">'+esc(c?c.name:"—")
+              + (c && c.company ? '<small>'+esc(c.company)+'</small>' : '')+'</span></td>'
+          + '<td>'+peopleHTML(j.assigned,false)+'</td>'
+          + '<td>'+pipeHTML(j.status,false)+'</td>'
+          + '<td><span class="chip '+chipClass(j.status)+'"><span class="dot"></span>'+esc(statusMeta(j.status).label)+'</span></td>'
+          + '<td class="t-right"><span class="money">'+money(j.total)+'</span></td>'
+          + '<td class="t-right"><span class="money '+(bal>0?"money-due":"money-ok")+'">'
+              + (bal>0 ? money(bal) : "Settled") + '</span></td>'
+          + '<td class="t-nowrap"><span class="money" style="font-size:12px">'+fmtDate(j.dueDate)+'</span>'
+              + (due ? ' <span class="chip '+due.cls+'" style="margin-left:4px">'+due.text+'</span>' : '')+'</td>'
+          + '</tr>';
+      }).join("")
+    + '</tbody></table></div>';
+}
+
+const TABS = [
+  {id:"active",    label:"On the floor", test:isActive},
+  {id:"ready",     label:"Ready",        test:function(j){ return j.status==="ready"; }},
+  {id:"delivered", label:"Handed over",  test:function(j){ return j.status==="delivered"; }},
+  {id:"hold",      label:"On hold",      test:function(j){ return j.status==="hold"; }},
+  {id:"completed", label:"Completed",    test:function(j){ return j.status==="completed"; }},
+  {id:"all",       label:"All",          test:function(){ return true; }}
+];
+
+function filteredJobs(){
+  const tab = TABS.find(function(t){ return t.id===filter.tab; }) || TABS[0];
+  const q = filter.q.trim().toLowerCase();
+  return db.jobs.filter(function(j){
+    if(!tab.test(j)) return false;
+    if(!q) return true;
+    const c = custById(j.customerId);
+    return (j.name+" "+j.code+" "+(c?c.name+" "+c.company:"")+" "+statusMeta(j.status).label)
+           .toLowerCase().indexOf(q) > -1;
+  }).sort(function(a,b){ return (a.dueDate||"9999").localeCompare(b.dueDate||"9999"); });
+}
+
+function renderJobs(){
+  const list = filteredJobs();
+  $("#view").innerHTML =
+    '<div class="toolbar">'
+      + '<div class="tabs" role="group" aria-label="Filter jobs">'
+      + TABS.map(function(t){
+          const n = db.jobs.filter(t.test).length;
+          return '<button data-tab="'+t.id+'" aria-pressed="'+(filter.tab===t.id)+'">'
+            + t.label + '<span class="n">'+n+'</span></button>';
+        }).join("")
+      + '</div>'
+    + '</div>'
+    + '<section class="card">'+ jobTable(list) +'</section>'
+    + '<p class="hint">Showing <b class="num">'+list.length+'</b> of '+db.jobs.length+' jobs. Click any row to open it.</p>';
+}
+
+/* ===================== PAYMENTS ===================== */
+
+function renderPayments(){
+  const owing = db.jobs.filter(function(j){ return balance(j)>0 && j.status!=="cancelled"; })
+    .sort(function(a,b){ return balance(b)-balance(a); });
+  const totalOwed = owing.reduce(function(s,j){ return s+balance(j); },0);
+  const noAdvance = db.jobs.filter(function(j){ return isActive(j) && !j.advance; });
+  const afterHandover = owing.filter(function(j){ return j.status==="delivered" || j.status==="completed"; });
+  const afterOwed = afterHandover.reduce(function(s,j){ return s+balance(j); },0);
+
+  $("#view").innerHTML =
+    '<section class="kpis">'
+    + kpi("Total outstanding", money(totalOwed), "", "var(--bad)", 'Across <b>'+owing.length+'</b> jobs')
+    + kpi("Owed after handover", money(afterOwed), "", "var(--m)",
+        afterHandover.length ? '<b>'+afterHandover.length+'</b> jobs already delivered' : 'None — good')
+    + kpi("Started with no advance", noAdvance.length, "", "var(--warn)",
+        noAdvance.length ? 'Work in progress with nothing collected' : 'Every active job has an advance')
+    + '</section>'
+
+    + '<section class="card">'
+      + '<div class="card-head"><h3>Who owes what</h3><span class="lbl">highest first</span></div>'
+      + (owing.length ? '<div class="tablewrap"><table><thead><tr>'
+        + '<th>Job</th><th>Customer</th><th>Contact</th><th>Status</th>'
+        + '<th class="t-right">Total</th><th class="t-right">Advance</th><th class="t-right">Final</th><th class="t-right">Balance</th>'
+        + '</tr></thead><tbody>'
+        + owing.map(function(j){
+            const c = custById(j.customerId);
+            return '<tr data-job="'+j.id+'">'
+              + '<td><span class="jobname">'+esc(j.name)+'</span><span class="jobcode">'+esc(j.code)+'</span></td>'
+              + '<td><span class="cust">'+esc(c?c.name:"—")+(c&&c.company?'<small>'+esc(c.company)+'</small>':'')+'</span></td>'
+              + '<td><span class="money" style="font-size:12px">'+esc(jobPhone(j)||"—")+'</span></td>'
+              + '<td><span class="chip '+chipClass(j.status)+'"><span class="dot"></span>'+esc(statusMeta(j.status).label)+'</span></td>'
+              + '<td class="t-right"><span class="money">'+money(j.total)+'</span></td>'
+              + '<td class="t-right"><span class="money '+(j.advance?"":"money-zero")+'">'+(j.advance?money(j.advance):"—")+'</span></td>'
+              + '<td class="t-right"><span class="money '+(j.finalAmount?"":"money-zero")+'">'+(j.finalAmount?money(j.finalAmount):"—")+'</span></td>'
+              + '<td class="t-right"><span class="money money-due">'+money(balance(j))+'</span></td>'
+              + '</tr>';
+          }).join("")
+        + '</tbody></table></div>'
+        : '<div class="empty"><strong>Everything is settled</strong>No outstanding balances.</div>')
+    + '</section>';
+}
+
+/* ===================== CUSTOMERS ===================== */
+
+function renderCustomers(){
+  const rows = db.customers.map(function(c){
+    const jobs = db.jobs.filter(function(j){ return j.customerId===c.id; });
+    const owed = jobs.reduce(function(s,j){ return s + (j.status==="cancelled"?0:balance(j)); },0);
+    const value = jobs.reduce(function(s,j){ return s + (Number(j.total)||0); },0);
+    const live = jobs.filter(isActive).length;
+    return {c:c, n:jobs.length, live:live, owed:owed, value:value};
+  }).sort(function(a,b){ return b.value-a.value; });
+
+  $("#view").innerHTML =
+    '<p class="hint" style="max-width:62ch">Saved customers show up in the dropdown when you add a job — pick the name and the company and phone number fill themselves in.</p>'
+    + '<section class="card">'
+      + '<div class="card-head"><h3>Saved customers</h3><span class="lbl">'+db.customers.length+' on file</span></div>'
+      + '<div class="tablewrap"><table><thead><tr>'
+        + '<th>Customer</th><th>Company</th><th>Phone</th><th>Note</th>'
+        + '<th class="t-right">Jobs</th><th class="t-right">Total value</th><th class="t-right">Owes</th>'
+      + '</tr></thead><tbody>'
+      + rows.map(function(r){
+          return '<tr data-customer="'+r.c.id+'">'
+            + '<td><span class="jobname">'+esc(r.c.name)+'</span>'
+                + (r.live ? '<span class="jobcode">'+r.live+' job'+(r.live>1?'s':'')+' running</span>' : '')+'</td>'
+            + '<td><span class="cust">'+esc(r.c.company||"—")+'</span></td>'
+            + '<td><span class="money" style="font-size:12px">'+esc(r.c.phone||"—")+'</span></td>'
+            + '<td><span style="color:var(--muted);font-size:12px">'+esc(r.c.note||"—")+'</span></td>'
+            + '<td class="t-right"><span class="money">'+r.n+'</span></td>'
+            + '<td class="t-right"><span class="money">'+money(r.value)+'</span></td>'
+            + '<td class="t-right"><span class="money '+(r.owed>0?"money-due":"money-zero")+'">'+(r.owed>0?money(r.owed):"—")+'</span></td>'
+            + '</tr>';
+        }).join("")
+      + '</tbody></table></div>'
+    + '</section>';
+}
+
+/* ===================== TEAM ===================== */
+
+function renderTeam(){
+  const rows = db.staff.map(function(s){
+    const jobs = db.jobs.filter(function(j){ return (j.assigned||[]).indexOf(s.id)>-1; });
+    return {s:s, live:jobs.filter(isActive).length, done:jobs.filter(function(j){return j.status==="completed";}).length, total:jobs.length};
+  });
+
+  $("#view").innerHTML =
+    '<p class="hint" style="max-width:62ch">These are the people you can assign work to. Each job takes one or two of them.</p>'
+    + '<section class="card">'
+      + '<div class="card-head"><h3>Responsible persons</h3><span class="lbl">'+db.staff.filter(function(s){return s.active;}).length+' active</span></div>'
+      + '<div class="tablewrap"><table><thead><tr>'
+        + '<th>Name</th><th>Role</th><th>Phone</th>'
+        + '<th class="t-right">Jobs running</th><th class="t-right">Completed</th><th>Status</th>'
+      + '</tr></thead><tbody>'
+      + rows.map(function(r){
+          return '<tr data-staff="'+r.s.id+'">'
+            + '<td><div style="display:flex;align-items:center;gap:9px">'
+              + '<span class="av" style="background:'+avColor(r.s.id)+'">'+esc(initials(r.s.name))+'</span>'
+              + '<span class="jobname" style="margin:0">'+esc(r.s.name)+'</span></div></td>'
+            + '<td><span class="cust">'+esc(r.s.role||"—")+'</span></td>'
+            + '<td><span class="money" style="font-size:12px">'+esc(r.s.phone||"—")+'</span></td>'
+            + '<td class="t-right"><span class="money">'+r.live+'</span></td>'
+            + '<td class="t-right"><span class="money">'+r.done+'</span></td>'
+            + '<td>'+(r.s.active
+                ? '<span class="chip ph-done"><span class="dot"></span>Active</span>'
+                : '<span class="chip"><span class="dot"></span>Inactive</span>')+'</td>'
+            + '</tr>';
+        }).join("")
+      + '</tbody></table></div>'
+    + '</section>';
+}
+
+/* ===================== DRAWER PLUMBING ===================== */
+
+let drawerOpen = false, lastFocus = null;
+
+function openDrawer(html){
+  lastFocus = document.activeElement;
+  const d = $("#drawer");
+  d.innerHTML = html;
+  d.setAttribute("aria-hidden","false");
+  d.classList.add("open");
+  $("#scrim").classList.add("open");
+  drawerOpen = true;
+  const first = d.querySelector("input,select,textarea,button");
+  if(first) setTimeout(function(){ first.focus(); }, 260);
+}
+function closeDrawer(){
+  if(!drawerOpen) return;
+  $("#drawer").classList.remove("open");
+  $("#drawer").setAttribute("aria-hidden","true");
+  $("#scrim").classList.remove("open");
+  drawerOpen = false;
+  if(lastFocus && lastFocus.focus) lastFocus.focus();
+}
+
+/* ===================== JOB DETAIL ===================== */
+
+function jobDetail(id){
+  const j = db.jobs.find(function(x){ return x.id===id; });
+  if(!j) return;
+  const c = custById(j.customerId);
+  const bal = balance(j);
+  const due = dueState(j);
+
+  const stageBtns = STAGES.map(function(s, i){
+    const cur = STAGES.findIndex(function(x){ return x.id===j.status; });
+    let cls = "stage-btn";
+    if(s.id===j.status) cls += " active";
+    else if(cur>-1 && i<cur) cls += " done";
+    return '<button class="'+cls+'" data-stage="'+s.id+'"'+(canEdit()?'':' disabled')+'>'+esc(s.label)+'</button>';
+  }).join("");
+
+  openDrawer(
+    '<div class="drawer-head">'
+      + '<div style="min-width:0">'
+        + '<h2>'+esc(j.name)+'</h2>'
+        + '<span class="jobcode">'+esc(j.code)+'</span>'
+      + '</div>'
+      + '<button class="btn btn-ghost btn-sm" data-close aria-label="Close">'+ICONS.close+'</button>'
+    + '</div>'
+
+    + '<div class="drawer-body">'
+
+      + '<div>'
+        + pipeHTML(j.status, true)
+        + '<div class="pipe-key">'+PHASES.map(function(p){ return '<span>'+p.label+'</span>'; }).join("")+'</div>'
+        + '<div style="display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap">'
+          + '<span class="chip '+chipClass(j.status)+'"><span class="dot"></span>'+esc(statusMeta(j.status).label)+'</span>'
+          + (due ? '<span class="chip '+due.cls+'">'+due.text+'</span>' : '')
+        + '</div>'
+      + '</div>'
+
+      + '<div class="fieldset">'
+        + '<span class="lbl">Move to stage</span>'
+        + '<div class="stages">'+stageBtns+'</div>'
+        + '<div class="stages" style="margin-top:2px">'
+          + EXCEPTIONS.map(function(s){
+              return '<button class="stage-btn'+(j.status===s.id?" active":"")+'" data-stage="'+s.id+'"'+(canEdit()?'':' disabled')+'>'+esc(s.label)+'</button>';
+            }).join("")
+        + '</div>'
+        + (canEdit() ? '' : '<p class="hint">Owner view is read-only — stage changes are made by the shop.</p>')
+      + '</div>'
+
+      + '<div class="fieldset">'
+        + '<span class="lbl">Customer</span>'
+        + '<dl class="dl">'
+          + '<dt>Name</dt><dd>'+esc(c?c.name:"—")+'</dd>'
+          + '<dt>Company</dt><dd'+(c&&c.company?'':' class="muted"')+'>'+esc(c&&c.company?c.company:"Individual customer")+'</dd>'
+          + '<dt>Contact</dt><dd class="num">'+esc(jobPhone(j)||"—")+'</dd>'
+        + '</dl>'
+      + '</div>'
+
+      + '<div class="fieldset">'
+        + '<span class="lbl">Schedule &amp; people</span>'
+        + '<dl class="dl">'
+          + '<dt>Started</dt><dd class="num">'+fmtDate(j.startDate)+'</dd>'
+          + '<dt>Deadline</dt><dd class="num">'+fmtDate(j.dueDate)+'</dd>'
+          + '<dt>Handed over</dt><dd class="num'+(j.handoverDate?'':' muted')+'">'+fmtDate(j.handoverDate)+'</dd>'
+          + '<dt>Assigned</dt><dd>'+peopleHTML(j.assigned,true)+'</dd>'
+        + '</dl>'
+      + '</div>'
+
+      + '<div class="fieldset">'
+        + '<span class="lbl">Payments</span>'
+        + '<div class="ledger">'
+          + '<div class="ledger-row">Job total<span class="money">'+money(j.total)+'</span></div>'
+          + '<div class="ledger-row">Advance '+(j.advanceDate?'<small>'+fmtDate(j.advanceDate)+'</small>':'')
+              + '<span class="money '+(j.advance?"money-ok":"money-zero")+'">'+(j.advance?"− "+money(j.advance):"—")+'</span></div>'
+          + '<div class="ledger-row">Final payment '+(j.finalDate?'<small>'+fmtDate(j.finalDate)+'</small>':'')
+              + '<span class="money '+(j.finalAmount?"money-ok":"money-zero")+'">'+(j.finalAmount?"− "+money(j.finalAmount):"—")+'</span></div>'
+          + '<div class="ledger-row total">Pending balance'
+              + '<span class="money '+(bal>0?"money-due":"money-ok")+'">'+(bal>0?money(bal):"Fully settled")+'</span></div>'
+        + '</div>'
+      + '</div>'
+
+      + (j.notes ? '<div class="fieldset"><span class="lbl">Notes</span>'
+          + '<p style="font-size:13.5px;color:var(--ink-2);line-height:1.55">'+esc(j.notes)+'</p></div>' : '')
+
+    + '</div>'
+
+    + '<div class="drawer-foot">'
+      + '<button class="btn btn-sm" data-close>Close</button>'
+      + (canEdit()
+          ? '<button class="btn btn-sm btn-danger" data-delete-job="'+j.id+'">Delete</button>'
+            + '<button class="btn btn-sm btn-primary" data-edit-job="'+j.id+'">Edit job</button>'
+          : '<span class="hint" style="margin-left:auto">Read-only — owner view</span>')
+    + '</div>'
+  );
+}
+
+/* ===================== JOB FORM ===================== */
+
+let formPicks = [];
+
+function jobForm(id){
+  const editing = !!id;
+  const j = editing ? db.jobs.find(function(x){ return x.id===id; })
+                    : {id:"", code:"JOB-2026-"+String(db.nextJobNo).padStart(4,"0"), name:"", customerId:"",
+                       phone:"", startDate:TODAY, dueDate:"", assigned:[], status:"design",
+                       total:"", advance:"", advanceDate:"", handoverDate:"", finalAmount:"", finalDate:"", notes:""};
+  formPicks = (j.assigned||[]).slice();
+
+  const custOpts = db.customers.slice()
+    .sort(function(a,b){ return a.name.localeCompare(b.name); })
+    .map(function(c){
+      const lab = c.company ? c.name+" — "+c.company : c.name;
+      return '<option value="'+c.id+'"'+(c.id===j.customerId?' selected':'')+'>'+esc(lab)+'</option>';
+    }).join("");
+
+  const statusOpts = '<optgroup label="Production stages">'
+    + STAGES.map(function(s){ return '<option value="'+s.id+'"'+(s.id===j.status?' selected':'')+'>'+esc(s.label)+'</option>'; }).join("")
+    + '</optgroup><optgroup label="Exceptions">'
+    + EXCEPTIONS.map(function(s){ return '<option value="'+s.id+'"'+(s.id===j.status?' selected':'')+'>'+esc(s.label)+'</option>'; }).join("")
+    + '</optgroup>';
+
+  openDrawer(
+    '<div class="drawer-head">'
+      + '<div style="min-width:0"><h2>'+(editing?"Edit job":"New job")+'</h2>'
+      + '<span class="jobcode">'+esc(j.code)+'</span></div>'
+      + '<button class="btn btn-ghost btn-sm" data-close aria-label="Close">'+ICONS.close+'</button>'
+    + '</div>'
+
+    + '<form class="drawer-body" id="jobForm" novalidate>'
+
+      + '<div class="fieldset">'
+        + '<span class="lbl">The job</span>'
+        + '<label class="f"><span>Job name</span>'
+          + '<input class="input" name="name" value="'+esc(j.name)+'" placeholder="e.g. Wedding invitation cards — 250 pcs" autocomplete="off"></label>'
+        + '<div class="grid2">'
+          + '<label class="f"><span>Customer</span>'
+            + '<select class="select" name="customerId"><option value="">Select a saved customer…</option>'+custOpts+'</select></label>'
+          + '<label class="f"><span>Contact number <em>— override</em></span>'
+            + '<input class="input num" name="phone" value="'+esc(j.phone)+'" placeholder="fills from customer" autocomplete="off"></label>'
+        + '</div>'
+        + '<p class="hint" id="custHint"></p>'
+      + '</div>'
+
+      + '<div class="fieldset">'
+        + '<span class="lbl">Schedule</span>'
+        + '<div class="grid2">'
+          + '<label class="f"><span>Start date</span><input class="input num" type="date" name="startDate" value="'+esc(j.startDate)+'"></label>'
+          + '<label class="f"><span>Deadline</span><input class="input num" type="date" name="dueDate" value="'+esc(j.dueDate)+'"></label>'
+        + '</div>'
+        + '<div class="grid2">'
+          + '<label class="f"><span>Current stage</span><select class="select" name="status">'+statusOpts+'</select></label>'
+          + '<label class="f"><span>Handover date <em>— if done</em></span><input class="input num" type="date" name="handoverDate" value="'+esc(j.handoverDate)+'"></label>'
+        + '</div>'
+      + '</div>'
+
+      + '<div class="fieldset">'
+        + '<span class="lbl">Assigned to <em style="font-style:normal;text-transform:none;letter-spacing:0">— pick one or two</em></span>'
+        + '<div class="picks" id="picks">'
+          + db.staff.filter(function(s){ return s.active; }).map(function(s){
+              const on = formPicks.indexOf(s.id)>-1;
+              return '<button type="button" class="pick" data-pick="'+s.id+'" aria-pressed="'+on+'">'
+                + '<span class="av" style="background:'+avColor(s.id)+'">'+esc(initials(s.name))+'</span>'
+                + esc(s.name)+'</button>';
+            }).join("")
+        + '</div>'
+      + '</div>'
+
+      + '<div class="fieldset">'
+        + '<span class="lbl">Money</span>'
+        + '<label class="f"><span>Job total (LKR)</span>'
+          + '<input class="input num" name="total" inputmode="numeric" value="'+esc(j.total)+'" placeholder="0"></label>'
+        + '<div class="grid2">'
+          + '<label class="f"><span>Advance paid</span><input class="input num" name="advance" inputmode="numeric" value="'+esc(j.advance)+'" placeholder="0"></label>'
+          + '<label class="f"><span>Advance date</span><input class="input num" type="date" name="advanceDate" value="'+esc(j.advanceDate)+'"></label>'
+        + '</div>'
+        + '<div class="grid2">'
+          + '<label class="f"><span>Final payment</span><input class="input num" name="finalAmount" inputmode="numeric" value="'+esc(j.finalAmount)+'" placeholder="0"></label>'
+          + '<label class="f"><span>Final payment date</span><input class="input num" type="date" name="finalDate" value="'+esc(j.finalDate)+'"></label>'
+        + '</div>'
+        + '<div class="calc"><span class="lbl">Pending balance</span><span class="calc-val" id="calcBal">Rs 0</span></div>'
+      + '</div>'
+
+      + '<div class="fieldset">'
+        + '<span class="lbl">Notes</span>'
+        + '<textarea class="textarea" name="notes" placeholder="Paper stock, finishing, proof approval, delivery instructions…">'+esc(j.notes)+'</textarea>'
+      + '</div>'
+
+      + '<p class="err" id="formErr" hidden></p>'
+    + '</form>'
+
+    + '<div class="drawer-foot">'
+      + '<button class="btn btn-sm" data-close>Cancel</button>'
+      + '<button class="btn btn-sm btn-primary" data-save-job="'+(editing?j.id:"")+'">'+(editing?"Save changes":"Add job")+'</button>'
+    + '</div>'
+  );
+
+  updateCalc();
+  updateCustHint();
+}
+
+function updateCalc(){
+  const f = $("#jobForm"); if(!f) return;
+  const n = function(v){ return Number(String(v).replace(/[^0-9.-]/g,"")) || 0; };
+  const total = n(f.total.value);
+  const bal = total - n(f.advance.value) - n(f.finalAmount.value);
+  const el = $("#calcBal");
+  if(!total){                        // nothing costed yet — don't claim it's settled
+    el.textContent = "Rs 0";
+    el.style.color = "var(--faint)";
+  }else{
+    el.textContent = bal > 0 ? money(bal) : (bal < 0 ? "Overpaid by " + money(-bal) : "Fully settled");
+    el.style.color = bal > 0 ? "var(--bad)" : (bal < 0 ? "var(--warn)" : "var(--ok)");
+  }
+}
+
+function updateCustHint(){
+  const f = $("#jobForm"); if(!f) return;
+  const c = custById(f.customerId.value);
+  const h = $("#custHint");
+  if(!c){ h.textContent = "Pick a saved customer, or add a new one from the Customers page."; return; }
+  h.innerHTML = 'Using <b>'+esc(c.company || "individual customer")+'</b> · '
+    + '<span class="num">'+esc(c.phone||"no number on file")+'</span>'
+    + (c.note ? ' · '+esc(c.note) : '');
+}
+
+function saveJob(id){
+  const f = $("#jobForm");
+  const err = $("#formErr");
+  const n = function(v){ return Number(String(v).replace(/[^0-9.-]/g,"")) || 0; };
+  const problems = [];
+
+  f.querySelectorAll(".bad").forEach(function(el){ el.classList.remove("bad"); });
+
+  if(!f.name.value.trim()){ problems.push("Give the job a name."); f.name.classList.add("bad"); }
+  if(!f.customerId.value){ problems.push("Choose a customer."); f.customerId.classList.add("bad"); }
+  if(!formPicks.length){ problems.push("Assign at least one person."); }
+  if(f.startDate.value && f.dueDate.value && f.dueDate.value < f.startDate.value){
+    problems.push("The deadline is before the start date.");
+    f.dueDate.classList.add("bad");
+  }
+
+  if(problems.length){
+    err.textContent = problems.join(" ");
+    err.hidden = false;
+    return;
+  }
+  err.hidden = true;
+
+  const data = {
+    name:f.name.value.trim(), customerId:f.customerId.value, phone:f.phone.value.trim(),
+    startDate:f.startDate.value, dueDate:f.dueDate.value, assigned:formPicks.slice(),
+    status:f.status.value, total:n(f.total.value), advance:n(f.advance.value),
+    advanceDate:f.advanceDate.value, handoverDate:f.handoverDate.value,
+    finalAmount:n(f.finalAmount.value), finalDate:f.finalDate.value, notes:f.notes.value.trim()
+  };
+
+  if(id){
+    const j = db.jobs.find(function(x){ return x.id===id; });
+    Object.assign(j, data);
+    toast("Job updated");
+  }else{
+    data.id = uid("j");
+    data.code = "JOB-2026-" + String(db.nextJobNo).padStart(4,"0");
+    db.nextJobNo++;
+    db.jobs.unshift(data);
+    toast("Job " + data.code + " added");
+  }
+  save(); closeDrawer(); render();
+}
+
+/* ===================== CUSTOMER / STAFF FORMS ===================== */
+
+function customerForm(id){
+  const editing = !!id;
+  const c = editing ? custById(id) : {id:"", name:"", company:"", phone:"", email:"", note:""};
+  const jobs = editing ? db.jobs.filter(function(j){ return j.customerId===id; }) : [];
+
+  openDrawer(
+    '<div class="drawer-head">'
+      + '<div><h2>'+(editing?esc(c.name):"New customer")+'</h2>'
+      + '<span class="jobcode">'+(editing? jobs.length+" job"+(jobs.length===1?"":"s")+" on record" : "Saved for reuse")+'</span></div>'
+      + '<button class="btn btn-ghost btn-sm" data-close aria-label="Close">'+ICONS.close+'</button>'
+    + '</div>'
+    + '<form class="drawer-body" id="custForm" novalidate>'
+      + '<div class="fieldset">'
+        + '<span class="lbl">Details</span>'
+        + '<label class="f"><span>Contact person</span><input class="input" name="name" value="'+esc(c.name)+'" placeholder="e.g. Kasun Rajapaksha" autocomplete="off"></label>'
+        + '<label class="f"><span>Company <em>— leave blank for individuals</em></span><input class="input" name="company" value="'+esc(c.company)+'" placeholder="e.g. Ceylon Fresh Exports (Pvt) Ltd" autocomplete="off"></label>'
+        + '<div class="grid2">'
+          + '<label class="f"><span>Phone</span><input class="input num" name="phone" value="'+esc(c.phone)+'" placeholder="011 271 4400" autocomplete="off"></label>'
+          + '<label class="f"><span>Email <em>— optional</em></span><input class="input" name="email" value="'+esc(c.email)+'" placeholder="optional" autocomplete="off"></label>'
+        + '</div>'
+        + '<label class="f"><span>Note</span><textarea class="textarea" name="note" placeholder="Payment terms, delivery preferences, anything to remember…">'+esc(c.note)+'</textarea></label>'
+      + '</div>'
+      + (editing && jobs.length ? '<div class="fieldset"><span class="lbl">Job history</span>'
+          + '<div class="ledger">' + jobs.slice().reverse().map(function(j){
+              return '<div class="ledger-row"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(j.name)+'</span>'
+                + '<span class="chip '+chipClass(j.status)+'" style="margin-left:auto"><span class="dot"></span>'+esc(statusMeta(j.status).label)+'</span>'
+                + '<span class="money">'+money(j.total)+'</span></div>';
+            }).join("") + '</div></div>' : '')
+      + '<p class="err" id="formErr" hidden></p>'
+    + '</form>'
+    + '<div class="drawer-foot">'
+      + '<button class="btn btn-sm" data-close>Cancel</button>'
+      + (editing && !jobs.length ? '<button class="btn btn-sm btn-danger" data-delete-customer="'+id+'">Delete</button>' : '')
+      + '<button class="btn btn-sm btn-primary" data-save-customer="'+(editing?id:"")+'">'+(editing?"Save changes":"Add customer")+'</button>'
+    + '</div>'
+  );
+}
+
+function saveCustomer(id){
+  const f = $("#custForm"), err = $("#formErr");
+  f.querySelectorAll(".bad").forEach(function(el){ el.classList.remove("bad"); });
+  if(!f.name.value.trim()){
+    err.textContent = "Enter the contact person's name."; err.hidden = false;
+    f.name.classList.add("bad"); return;
+  }
+  const data = {
+    name:f.name.value.trim(), company:f.company.value.trim(), phone:f.phone.value.trim(),
+    email:f.email.value.trim(), note:f.note.value.trim()
+  };
+  if(id){ Object.assign(custById(id), data); toast("Customer updated"); }
+  else{ data.id = uid("c"); db.customers.push(data); toast(data.name + " saved"); }
+  save(); closeDrawer(); render();
+}
+
+function staffForm(id){
+  const editing = !!id;
+  const s = editing ? staffById(id) : {id:"", name:"", role:"", phone:"", active:true};
+  const jobs = editing ? db.jobs.filter(function(j){ return (j.assigned||[]).indexOf(id)>-1; }) : [];
+
+  openDrawer(
+    '<div class="drawer-head">'
+      + '<div><h2>'+(editing?esc(s.name):"Add a person")+'</h2>'
+      + '<span class="jobcode">'+(editing? jobs.filter(isActive).length+" jobs running" : "Selectable when assigning work")+'</span></div>'
+      + '<button class="btn btn-ghost btn-sm" data-close aria-label="Close">'+ICONS.close+'</button>'
+    + '</div>'
+    + '<form class="drawer-body" id="staffForm" novalidate>'
+      + '<div class="fieldset">'
+        + '<span class="lbl">Details</span>'
+        + '<label class="f"><span>Full name</span><input class="input" name="name" value="'+esc(s.name)+'" placeholder="e.g. Nuwan Perera" autocomplete="off"></label>'
+        + '<div class="grid2">'
+          + '<label class="f"><span>Role</span><input class="input" name="role" value="'+esc(s.role)+'" placeholder="e.g. Press Operator" autocomplete="off"></label>'
+          + '<label class="f"><span>Phone</span><input class="input num" name="phone" value="'+esc(s.phone)+'" placeholder="077 214 5566" autocomplete="off"></label>'
+        + '</div>'
+        + '<label class="f"><span>Availability</span>'
+          + '<select class="select" name="active">'
+            + '<option value="1"'+(s.active?' selected':'')+'>Active — can be assigned jobs</option>'
+            + '<option value="0"'+(!s.active?' selected':'')+'>Inactive — hide from the assign list</option>'
+          + '</select></label>'
+      + '</div>'
+      + (editing && jobs.length ? '<div class="fieldset"><span class="lbl">Current workload</span>'
+          + '<div class="ledger">' + jobs.filter(isActive).map(function(j){
+              return '<div class="ledger-row"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(j.name)+'</span>'
+                + '<span class="chip '+chipClass(j.status)+'" style="margin-left:auto"><span class="dot"></span>'+esc(statusMeta(j.status).label)+'</span></div>';
+            }).join("") + '</div></div>' : '')
+      + '<p class="err" id="formErr" hidden></p>'
+    + '</form>'
+    + '<div class="drawer-foot">'
+      + '<button class="btn btn-sm" data-close>Cancel</button>'
+      + (editing && !jobs.length ? '<button class="btn btn-sm btn-danger" data-delete-staff="'+id+'">Delete</button>' : '')
+      + '<button class="btn btn-sm btn-primary" data-save-staff="'+(editing?id:"")+'">'+(editing?"Save changes":"Add person")+'</button>'
+    + '</div>'
+  );
+}
+
+function saveStaff(id){
+  const f = $("#staffForm"), err = $("#formErr");
+  f.querySelectorAll(".bad").forEach(function(el){ el.classList.remove("bad"); });
+  if(!f.name.value.trim()){
+    err.textContent = "Enter the person's name."; err.hidden = false;
+    f.name.classList.add("bad"); return;
+  }
+  const data = {name:f.name.value.trim(), role:f.role.value.trim(), phone:f.phone.value.trim(), active:f.active.value==="1"};
+  if(id){ Object.assign(staffById(id), data); toast("Details updated"); }
+  else{ data.id = uid("s"); db.staff.push(data); toast(data.name + " added to the team"); }
+  save(); closeDrawer(); render();
+}
+
+/* ===================== RENDER ===================== */
+
+const HEADERS = {
+  dashboard:{t:"Dashboard", s:"Everything happening in the shop right now"},
+  jobs:{t:"Jobs", s:"Every job in the register"},
+  payments:{t:"Payments", s:"Advances, final payments and what is still owed"},
+  customers:{t:"Customers", s:"Saved customers you can pick when adding a job"},
+  team:{t:"Team", s:"People you can assign jobs to"}
+};
+
+function renderHeader(){
+  const h = HEADERS[route];
+  $("#pageTitle").textContent = h.t;
+  $("#pageSub").textContent = h.s;
+
+  let actions = "";
+  if(route==="jobs" || route==="dashboard" || route==="payments"){
+    actions += '<div class="field"><span>'+ICONS.search+'</span>'
+      + '<input class="input searchbox" id="search" placeholder="Search jobs or customers" value="'+esc(filter.q)+'" autocomplete="off"></div>';
+  }
+  if(canEdit()){
+    if(route==="jobs" || route==="dashboard")
+      actions += '<button class="btn btn-primary" data-new="job">'+ICONS.plus+'New job</button>';
+    if(route==="customers")
+      actions += '<button class="btn btn-primary" data-new="customer">'+ICONS.plus+'Add customer</button>';
+    if(route==="team")
+      actions += '<button class="btn btn-primary" data-new="staff">'+ICONS.plus+'Add person</button>';
+  }
+  $("#pageActions").innerHTML = actions;
+}
+
+function render(){
+  renderNav();
+  renderHeader();
+  if(route==="dashboard") renderDashboard();
+  else if(route==="jobs") renderJobs();
+  else if(route==="payments") renderPayments();
+  else if(route==="customers") renderCustomers();
+  else if(route==="team") renderTeam();
+}
+
+/* ===================== EVENTS ===================== */
+
+document.addEventListener("click", function(e){
+  const t = e.target;
+
+  const nav = t.closest("[data-nav]");
+  if(nav){
+    route = nav.getAttribute("data-nav");
+    if(route==="jobs" && filter.q) filter.tab = "all";
+    render(); window.scrollTo(0,0); return;
+  }
+
+  const tab = t.closest("[data-tab]");
+  if(tab){ filter.tab = tab.getAttribute("data-tab"); render(); return; }
+
+  if(t.closest("[data-close]")){ closeDrawer(); return; }
+
+  const jobRow = t.closest("[data-job]");
+  if(jobRow){ jobDetail(jobRow.getAttribute("data-job")); return; }
+
+  const custRow = t.closest("[data-customer]");
+  if(custRow){ customerForm(custRow.getAttribute("data-customer")); return; }
+
+  const staffRow = t.closest("[data-staff]");
+  if(staffRow){ staffForm(staffRow.getAttribute("data-staff")); return; }
+
+  const nw = t.closest("[data-new]");
+  if(nw){
+    const kind = nw.getAttribute("data-new");
+    if(kind==="job") jobForm("");
+    else if(kind==="customer") customerForm("");
+    else staffForm("");
+    return;
+  }
+
+  const editJob = t.closest("[data-edit-job]");
+  if(editJob){ jobForm(editJob.getAttribute("data-edit-job")); return; }
+
+  const saveJobBtn = t.closest("[data-save-job]");
+  if(saveJobBtn){ saveJob(saveJobBtn.getAttribute("data-save-job")); return; }
+
+  const saveCustBtn = t.closest("[data-save-customer]");
+  if(saveCustBtn){ saveCustomer(saveCustBtn.getAttribute("data-save-customer")); return; }
+
+  const saveStaffBtn = t.closest("[data-save-staff]");
+  if(saveStaffBtn){ saveStaff(saveStaffBtn.getAttribute("data-save-staff")); return; }
+
+  const delJob = t.closest("[data-delete-job]");
+  if(delJob){
+    const id = delJob.getAttribute("data-delete-job");
+    const j = db.jobs.find(function(x){ return x.id===id; });
+    if(confirm('Delete "'+j.name+'"? This cannot be undone.')){
+      db.jobs = db.jobs.filter(function(x){ return x.id!==id; });
+      save(); closeDrawer(); render(); toast("Job deleted");
+    }
+    return;
+  }
+
+  const delCust = t.closest("[data-delete-customer]");
+  if(delCust){
+    const id = delCust.getAttribute("data-delete-customer");
+    db.customers = db.customers.filter(function(x){ return x.id!==id; });
+    save(); closeDrawer(); render(); toast("Customer removed");
+    return;
+  }
+
+  const delStaff = t.closest("[data-delete-staff]");
+  if(delStaff){
+    const id = delStaff.getAttribute("data-delete-staff");
+    db.staff = db.staff.filter(function(x){ return x.id!==id; });
+    save(); closeDrawer(); render(); toast("Person removed");
+    return;
+  }
+
+  // Stage buttons in the job detail
+  const stage = t.closest("[data-stage]");
+  if(stage && !stage.disabled){
+    const id = stage.closest(".drawer").querySelector("[data-edit-job]");
+    const jobId = id ? id.getAttribute("data-edit-job") : null;
+    if(jobId){
+      const j = db.jobs.find(function(x){ return x.id===jobId; });
+      j.status = stage.getAttribute("data-stage");
+      if(j.status==="delivered" && !j.handoverDate) j.handoverDate = TODAY;
+      save(); jobDetail(jobId); renderNav();
+      if(route!=="team" && route!=="customers"){
+        if(route==="dashboard") renderDashboard();
+        else if(route==="jobs") renderJobs();
+        else if(route==="payments") renderPayments();
+      }
+      toast("Moved to " + statusMeta(j.status).label);
+    }
+    return;
+  }
+
+  // Assign-person toggles (max 2)
+  const pick = t.closest("[data-pick]");
+  if(pick){
+    const id = pick.getAttribute("data-pick");
+    const i = formPicks.indexOf(id);
+    if(i > -1) formPicks.splice(i,1);
+    else if(formPicks.length < 2) formPicks.push(id);
+    else { toast("Two people maximum — deselect one first"); return; }
+    document.querySelectorAll("[data-pick]").forEach(function(b){
+      b.setAttribute("aria-pressed", formPicks.indexOf(b.getAttribute("data-pick"))>-1);
+    });
+    return;
+  }
+
+  if(t.id === "scrim"){ closeDrawer(); return; }
+
+  if(t.id === "role-shop" || t.id === "role-owner"){
+    role = t.id === "role-shop" ? "shop" : "owner";
+    $("#role-shop").setAttribute("aria-pressed", role==="shop");
+    $("#role-owner").setAttribute("aria-pressed", role==="owner");
+    $("#roleNote").textContent = role==="shop"
+      ? "Shop staff — full edit access."
+      : "Owner abroad — sees everything, changes nothing.";
+    closeDrawer(); render();
+    toast(role==="shop" ? "Shop view — you can add and edit" : "Owner view — read only");
+    return;
+  }
+
+  if(t.id === "resetDemo"){
+    if(confirm("Reset the demo back to the original sample data?")){
+      db = seed(); save(); closeDrawer(); route="dashboard"; filter={q:"",tab:"active"}; render();
+      toast("Demo data reset");
+    }
+    return;
+  }
+});
+
+document.addEventListener("input", function(e){
+  const t = e.target;
+  if(t.id === "search"){
+    filter.q = t.value;
+    if(route==="jobs"){
+      const list = filteredJobs();
+      const card = document.querySelector(".content .card");
+      if(card) card.innerHTML = jobTable(list);
+      const hint = document.querySelector(".content .hint");
+      if(hint) hint.innerHTML = 'Showing <b class="num">'+list.length+'</b> of '+db.jobs.length+' jobs. Click any row to open it.';
+    }else{
+      route = "jobs"; filter.tab = "all"; render();
+      const s = $("#search"); if(s){ s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
+    }
+    return;
+  }
+  if(t.form && t.form.id === "jobForm"){
+    if(t.name==="total" || t.name==="advance" || t.name==="finalAmount") updateCalc();
+    if(t.name==="customerId") updateCustHint();
+  }
+});
+
+document.addEventListener("change", function(e){
+  if(e.target.name==="customerId") updateCustHint();
+});
+
+document.addEventListener("keydown", function(e){
+  if(e.key === "Escape" && drawerOpen) closeDrawer();
+});
+
+window.addEventListener("resize", function(){
+  const split = document.querySelector(".dash-split");
+  if(split) split.style.gridTemplateColumns = window.innerWidth < 1000 ? "1fr" : "minmax(0,1.35fr) minmax(0,1fr)";
+});
+
+/* ===================== BOOT ===================== */
+load();
+render();
+
+})();
+</script>
