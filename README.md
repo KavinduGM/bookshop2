@@ -46,8 +46,17 @@ pending balance, handover date, current stage, and notes.
 
 Plus **On Hold** and **Cancelled** for jobs that leave the normal flow.
 
-**Customers** — saved and reusable. Pick one when adding a job and the company
-and phone number fill in automatically.
+**Customers** — two kinds, chosen with a switch on the job form:
+
+- **Saved customer** — pick from the list; company and phone fill in
+  automatically. For the regulars.
+- **Walk-in** — just a name and a phone number, typed straight onto the job.
+  Nothing is added to the customer list, so one-off customers don't clutter it.
+  A tick box promotes a walk-in to a saved customer if they turn out to be a
+  regular after all.
+
+Both name and number are required for a walk-in — there is no other record of
+them anywhere, so without a number the shop has no way to make contact.
 
 **Team** — the people jobs can be assigned to. Each job takes one or two.
 
@@ -55,6 +64,38 @@ and phone number fill in automatically.
 handed over with money outstanding.
 
 Pending balance is always calculated (`total − advance − final`), never typed.
+
+### Pages
+
+Each page has its own address, so any of them can be bookmarked or linked to
+directly:
+
+| Page | Link |
+| --- | --- |
+| Dashboard | `/#dashboard` |
+| Jobs | `/#jobs` |
+| **New Job** | `/#new` |
+| Payments | `/#payments` |
+| Customers | `/#customers` |
+| Team | `/#team` |
+
+**`/#new` is a page containing nothing but the job entry form.** Open it and you
+can fill in a job and save it without touching the rest of the system — useful
+as a phone shortcut or a link handed to someone who only ever needs to add jobs.
+After saving it confirms and offers to add another, rather than navigating away.
+
+It is hidden in Owner view, and opening the link directly in Owner view lands on
+the Jobs page instead.
+
+### On a phone
+
+The layout is built for phones, not just shrunk to fit:
+
+- The sidebar becomes a bottom tab bar, thumb-reachable.
+- Tables become stacked cards with labelled rows — an eight-column table is
+  unreadable on a 390px screen.
+- Fields are 16px so iOS doesn't zoom in every time one is tapped.
+- Panels open full screen, and layouts respect notches and home indicators.
 
 ---
 

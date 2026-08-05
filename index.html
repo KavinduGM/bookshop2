@@ -1,3 +1,7 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
 <title>PressTrack — Print Shop Job Tracker</title>
 
 <style>
@@ -325,6 +329,33 @@ label.f > span em{font-style:normal; color:var(--faint); font-weight:500}
 }
 .calc-val{font-family:var(--mono); font-size:19px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
 
+/* segmented control — saved customer vs walk-in */
+.seg{display:flex; background:var(--surface-2); border-radius:var(--r); padding:3px; gap:2px}
+.seg button{
+  flex:1; padding:7px 10px; border-radius:6px; font-size:12.5px; font-weight:600;
+  color:var(--muted); transition:background .12s, color .12s;
+}
+.seg button[aria-pressed="true"]{background:var(--surface); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.09)}
+#custSaved,#custWalkin{display:flex; flex-direction:column; gap:11px; margin-top:11px}
+#custSaved[hidden],#custWalkin[hidden]{display:none}
+
+label.check{display:flex; align-items:center; gap:9px; cursor:pointer; font-size:13px; color:var(--ink-2)}
+label.check input{width:16px; height:16px; accent-color:var(--accent); flex:0 0 16px; cursor:pointer}
+
+/* standalone New Job page */
+.formpage{max-width:760px; width:100%; margin:0 auto}
+.formpage-body{padding:20px; display:flex; flex-direction:column; gap:22px}
+.formpage-foot{
+  display:flex; align-items:center; gap:8px; padding:14px 20px;
+  border-top:1px solid var(--line); background:var(--surface-2);
+  border-radius:0 0 12px 12px;
+}
+.formpage-foot .btn-primary{margin-left:auto}
+.savedmsg-body{padding:52px 24px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:6px}
+.savedmsg-body h3{font-size:19px; margin-top:10px}
+.savedmsg-body p{color:var(--muted); font-size:13.5px}
+.savedmsg-actions{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:20px}
+
 /* staff multi-select */
 .picks{display:flex; flex-wrap:wrap; gap:7px}
 .pick{
@@ -388,23 +419,179 @@ label.f > span em{font-style:normal; color:var(--faint); font-weight:500}
 .demobar button{margin-left:auto; font-size:11.5px; font-weight:600; color:inherit; text-decoration:underline; text-underline-offset:2px}
 
 /* ============ RESPONSIVE ============ */
-@media (max-width:900px){
-  :root{--rail:60px}
+
+/* Mobile top bar carrying the brand and the view switch, since the sidebar
+   turns into a bottom tab bar on phones. Hidden on anything wider. */
+.viewbar{display:none}
+.viewbar-brand{display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:650; letter-spacing:-.02em}
+
+.dash-split{display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:20px}
+
+/* ---- Tablet: collapse the rail to icons ---- */
+@media (max-width:1040px){
+  .dash-split{grid-template-columns:1fr}
+}
+@media (max-width:1000px) and (min-width:761px){
+  :root{--rail:64px}
   .rail{padding:14px 8px; align-items:center}
-  .brand-text,.nav-item span,.nav-count,.role-note{display:none}
+  .brand-text,.nav-item > span,.nav-count,.role-note{display:none}
   .brand{padding:2px 0 16px; justify-content:center}
-  .nav-item{justify-content:center; padding:9px}
+  .nav-item{justify-content:center; padding:10px}
   .role{flex-direction:column}
-  .role button{font-size:10px; padding:5px 2px}
+  .role button{font-size:10.5px; padding:6px 2px}
   .topbar,.demobar{padding-left:18px; padding-right:18px}
   .content{padding:18px 18px 56px}
-  .searchbox{width:150px}
+  .searchbox{width:170px}
   .grid3{grid-template-columns:1fr}
 }
-@media (max-width:560px){
-  .grid2{grid-template-columns:1fr}
+
+/* ---- Phone ---- */
+@media (max-width:760px){
+  .app{flex-direction:column}
+
+  /* Sidebar becomes a fixed bottom tab bar */
+  .rail{
+    position:fixed; left:0; right:0; bottom:0; top:auto; z-index:35;
+    width:100%; height:auto; flex:none; flex-direction:row; gap:0;
+    padding:5px 4px calc(5px + env(safe-area-inset-bottom, 0px));
+    border-right:none; border-top:1px solid var(--line);
+  }
+  .brand,.rail-foot{display:none}
+  .nav{flex-direction:row; flex:1; gap:1px}
+  .nav-item{
+    flex:1 1 0; min-width:0; flex-direction:column; justify-content:center;
+    gap:3px; padding:7px 2px 5px; min-height:50px;
+    font-size:9.5px; font-weight:600; text-align:center; border-radius:9px;
+  }
+  .nav-item > span{
+    display:block; width:100%; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap;
+  }
+  .nav-item svg{flex:none}
+  /* Must out-specify `.nav-item > span` above, which would otherwise
+     re-show the count as a third line in the tab. */
+  .nav-item > .nav-count{display:none}
+
+  .viewbar{
+    display:flex; align-items:center; gap:12px;
+    padding:calc(9px + env(safe-area-inset-top, 0px)) 14px 9px;
+    border-bottom:1px solid var(--line); background:var(--surface);
+  }
+  .viewbar .role{margin-left:auto; flex:0 0 auto}
+  .viewbar .role button{padding:5px 13px; font-size:11.5px}
+
+  .main{padding-bottom:0}
+  .demobar{padding:8px 14px; font-size:11.5px; align-items:flex-start; line-height:1.45}
+  .demobar > svg{margin-top:2px; flex:none}
+  .demobar button{margin-left:0; flex:none}
+
+  .topbar{
+    position:static;            /* two stacked sticky bars would eat the screen */
+    padding:14px 14px 12px; gap:10px; align-items:flex-start;
+  }
+  .topbar h1{font-size:17.5px}
+  .topbar-sub{font-size:12px}
+  .topbar-actions{margin-left:0; width:100%; gap:8px}
+  .topbar-actions .field{flex:1 1 auto; min-width:0}
+  .searchbox{width:100%}
+
+  /* Bottom padding clears the fixed tab bar */
+  .content{padding:14px 14px calc(84px + env(safe-area-inset-bottom, 0px)); gap:16px}
+
+  /* 16px stops iOS from zooming the page when a field is focused */
+  .input,.select,.textarea{font-size:16px; padding:10px 12px}
+  .field .input{padding-left:32px}
+  .btn{padding:9px 14px}
+  .btn-sm{padding:8px 12px; font-size:12.5px}
+
+  .kpis{grid-template-columns:1fr 1fr; gap:9px}
+  .kpi{padding:12px 13px; gap:6px}
+  .kpi-val{font-size:19px}
+  .kpi-foot{font-size:11px}
+
+  .card-head{padding:13px 14px}
+
+  /* Grid rather than wrapped flex — flex ordering put the status chip above
+     the job name. Bar spans both rows, chip sits under the text. */
+  .arow{
+    display:grid; align-items:start; gap:7px 11px; padding:12px 14px;
+    grid-template-columns:3px minmax(0,1fr);
+    grid-template-areas:"bar main" "bar chip";
+  }
+  .arow-bar{grid-area:bar; align-self:stretch}
+  .arow-main{grid-area:main; min-width:0}
+  .arow-main b{white-space:normal}
+  .arow .chip{grid-area:chip; justify-self:start}
+
+  /* Tables become stacked cards — 8 columns will never fit on a phone */
+  .tablewrap{overflow-x:visible}
+  table,thead,tbody,tr,td{display:block}
+  thead{display:none}
+  tbody tr{
+    padding:13px 14px; border-bottom:1px solid var(--line);
+  }
+  tbody tr:last-child{border-bottom:none}
+  tbody td{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:14px; padding:4px 0; border:none; min-height:26px;
+  }
+  tbody td::before{
+    content:attr(data-label);
+    font-family:var(--mono); font-size:9.5px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--faint); font-weight:500;
+    flex:0 0 auto;
+  }
+  tbody td.td-primary{
+    display:block; padding:0 0 9px; margin-bottom:6px;
+    border-bottom:1px solid var(--line-2);
+  }
+  tbody td.td-primary::before{content:none}
+  tbody td > *{text-align:right}
+  tbody td.td-primary > *{text-align:left}
+  .cust small{margin-top:1px}
+  .pipe{width:90px}
+
+  /* Filter tabs scroll sideways instead of wrapping into a tall block */
+  .tabs{
+    overflow-x:auto; max-width:100%; scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs button{flex:0 0 auto; white-space:nowrap; padding:7px 12px}
+
+  /* Drawer goes full screen */
+  .drawer{width:100%; border-left:none}
+  .drawer-head{padding:calc(14px + env(safe-area-inset-top, 0px)) 16px 13px}
+  .drawer-head h2{font-size:15.5px}
+  .drawer-body{padding:16px; gap:20px}
+  .drawer-foot{
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    flex-wrap:wrap;
+  }
+  .drawer-foot .btn{flex:1 1 auto; justify-content:center}
+  .drawer-foot .btn-primary{flex:1 1 100%; order:-1; margin-left:0}
+  .drawer-foot .hint{flex:1 1 100%; text-align:center; margin-left:0}
+
+  .formpage-body{padding:16px; gap:20px}
+  .formpage-foot{padding:12px 16px; flex-wrap:wrap}
+  .formpage-foot .btn{flex:1 1 auto; justify-content:center}
+  .formpage-foot .btn-primary{flex:1 1 100%; order:-1; margin-left:0}
+  .savedmsg-body{padding:40px 18px}
+  .savedmsg-actions{flex-direction:column; align-self:stretch}
+  .savedmsg-actions .btn{width:100%; justify-content:center}
+
+  .grid2,.grid3{grid-template-columns:1fr}
   .dl{grid-template-columns:1fr; gap:2px 0}
-  .dl dd{margin-bottom:8px}
+  .dl dd{margin-bottom:9px}
+  .stage-btn{padding:7px 12px; font-size:12px}
+  .pick{padding:7px 13px 7px 6px; font-size:13px}
+  .toast{bottom:calc(78px + env(safe-area-inset-bottom, 0px)); width:max-content; max-width:calc(100% - 28px)}
+  .people-names{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+}
+
+@media (max-width:380px){
+  .kpis{grid-template-columns:1fr}
+  .nav-item{font-size:9px}
 }
 </style>
 
@@ -427,14 +614,29 @@ label.f > span em{font-style:normal; color:var(--faint); font-weight:500}
 
     <div class="rail-foot">
       <div class="role" role="group" aria-label="Switch view">
-        <button id="role-shop" aria-pressed="true">Shop</button>
-        <button id="role-owner" aria-pressed="false">Owner</button>
+        <button data-role="shop" aria-pressed="true">Shop</button>
+        <button data-role="owner" aria-pressed="false">Owner</button>
       </div>
-      <p class="role-note" id="roleNote">Shop staff — full edit access.</p>
+      <p class="role-note js-rolenote">Shop staff — full edit access.</p>
     </div>
   </aside>
 
   <main class="main">
+    <div class="viewbar">
+      <div class="viewbar-brand">
+        <svg width="20" height="20" viewBox="0 0 26 26" aria-hidden="true">
+          <circle cx="13" cy="13" r="7.5" fill="none" stroke="var(--c)" stroke-width="1.8" opacity=".9"/>
+          <circle cx="13" cy="13" r="4.2" fill="none" stroke="var(--m)" stroke-width="1.8" opacity=".9"/>
+          <circle cx="13" cy="13" r="1.6" fill="var(--y)"/>
+        </svg>
+        <span>PressTrack</span>
+      </div>
+      <div class="role" role="group" aria-label="Switch view">
+        <button data-role="shop" aria-pressed="true">Shop</button>
+        <button data-role="owner" aria-pressed="false">Owner</button>
+      </div>
+    </div>
+
     <div class="demobar">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/>
@@ -590,9 +792,24 @@ function seed(){ return {
      customerId:"c4", phone:"", startDate:"2026-07-26", dueDate:"2026-08-20", assigned:["s2"],
      status:"hold", total:45000, advance:0, advanceDate:"",
      handoverDate:"", finalAmount:0, finalDate:"",
-     notes:"On hold — customer reviewing budget. Follow up mid-August."}
+     notes:"On hold — customer reviewing budget. Follow up mid-August."},
+
+    // Walk-ins: no saved customer record, just a name and a number on the job.
+    {id:"j13", code:"JOB-2026-0139", name:"Funeral notices — 200 copies",
+     customerId:"", customerName:"Sunil Wickramasinghe", phone:"071 640 2295",
+     startDate:"2026-08-02", dueDate:"2026-08-06", assigned:["s2"],
+     status:"printing", total:12500, advance:12500, advanceDate:"2026-08-02",
+     handoverDate:"", finalAmount:0, finalDate:"",
+     notes:"Walk-in. Paid in full, collecting from the shop."},
+
+    {id:"j14", code:"JOB-2026-0135", name:"Photocopy + spiral binding — 15 sets",
+     customerId:"", customerName:"Tharindu Bandara", phone:"076 118 3390",
+     startDate:"2026-07-29", dueDate:"2026-08-01", assigned:["s3"],
+     status:"completed", total:6800, advance:0, advanceDate:"",
+     handoverDate:"2026-08-01", finalAmount:6800, finalDate:"2026-08-01",
+     notes:"Walk-in. Paid on collection."}
   ],
-  nextJobNo:145
+  nextJobNo:146
 };}
 
 /* ===================== STATE ===================== */
@@ -646,11 +863,17 @@ const staffById = id => db.staff.find(s=>s.id===id);
 const custById  = id => db.customers.find(c=>c.id===id);
 const statusMeta = id => ALL_STATUSES.find(s=>s.id===id) || {id:id,label:id};
 
-function jobPhone(j){
-  if(j.phone) return j.phone;
-  const c = custById(j.customerId);
-  return c ? c.phone : "";
+// A job belongs either to a saved customer, or to a walk-in whose name and
+// number live on the job itself. Saved customers can be deleted after the fact,
+// so never assume the lookup succeeds — fall back to whatever the job carries.
+function jobCustomer(j){
+  if(j.customerId){
+    const c = custById(j.customerId);
+    if(c) return {name:c.name, company:c.company, phone:j.phone || c.phone, note:c.note, saved:true};
+  }
+  return {name:j.customerName || "Walk-in customer", company:"", phone:j.phone || "", note:"", saved:false};
 }
+function jobPhone(j){ return jobCustomer(j).phone; }
 function paid(j){ return (Number(j.advance)||0) + (Number(j.finalAmount)||0); }
 function balance(j){ return Math.max(0, (Number(j.total)||0) - paid(j)); }
 function isClosed(j){ return j.status==="completed" || j.status==="cancelled"; }
@@ -744,10 +967,15 @@ const ICONS = {
 const PAGES = [
   {id:"dashboard", label:"Dashboard", icon:"dashboard"},
   {id:"jobs",      label:"Jobs",      icon:"jobs"},
+  {id:"new",       label:"New Job",   icon:"plus",      shopOnly:true},
   {id:"payments",  label:"Payments",  icon:"money"},
   {id:"customers", label:"Customers", icon:"customers"},
   {id:"team",      label:"Team",      icon:"team"}
 ];
+const ROUTES = PAGES.map(function(p){ return p.id; });
+function visiblePages(){
+  return PAGES.filter(function(p){ return !p.shopOnly || canEdit(); });
+}
 
 function renderNav(){
   const counts = {
@@ -756,7 +984,7 @@ function renderNav(){
     customers: db.customers.length,
     team: db.staff.filter(function(s){ return s.active; }).length
   };
-  $("#nav").innerHTML = PAGES.map(function(p){
+  $("#nav").innerHTML = visiblePages().map(function(p){
     const n = counts[p.id];
     return '<button class="nav-item" data-nav="'+p.id+'"'+(route===p.id?' aria-current="page"':'')+'>'
       + ICONS[p.icon] + '<span>'+p.label+'</span>'
@@ -821,7 +1049,7 @@ function renderDashboard(){
         'All advances and final payments')
     + '</section>'
 
-    + '<div style="display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:20px" class="dash-split">'
+    + '<div class="dash-split">'
 
       + '<section class="card">'
         + '<div class="card-head"><h3>Needs attention</h3><span class="lbl">'+attention.length+' items</span></div>'
@@ -862,10 +1090,6 @@ function renderDashboard(){
         + '<button class="btn btn-sm btn-ghost" data-nav="jobs" style="margin-left:auto">View all '+db.jobs.length+' →</button></div>'
       + jobTable(recent)
     + '</section>';
-
-  // Responsive: collapse the split on narrow screens
-  const split = document.querySelector(".dash-split");
-  if(split && window.innerWidth < 1000) split.style.gridTemplateColumns = "1fr";
 }
 
 function kpi(label, value, unit, bar, foot){
@@ -887,20 +1111,21 @@ function jobTable(list){
     + '<th class="t-right">Total</th><th class="t-right">Balance</th><th class="t-nowrap">Deadline</th>'
     + '</tr></thead><tbody>'
     + list.map(function(j){
-        const c = custById(j.customerId);
+        const c = jobCustomer(j);
         const bal = balance(j);
         const due = dueState(j);
         return '<tr data-job="'+j.id+'">'
-          + '<td style="min-width:200px"><span class="jobname">'+esc(j.name)+'</span><span class="jobcode">'+esc(j.code)+'</span></td>'
-          + '<td style="min-width:150px"><span class="cust">'+esc(c?c.name:"—")
-              + (c && c.company ? '<small>'+esc(c.company)+'</small>' : '')+'</span></td>'
-          + '<td>'+peopleHTML(j.assigned,false)+'</td>'
-          + '<td>'+pipeHTML(j.status,false)+'</td>'
-          + '<td><span class="chip '+chipClass(j.status)+'"><span class="dot"></span>'+esc(statusMeta(j.status).label)+'</span></td>'
-          + '<td class="t-right"><span class="money">'+money(j.total)+'</span></td>'
-          + '<td class="t-right"><span class="money '+(bal>0?"money-due":"money-ok")+'">'
+          + '<td class="td-primary" style="min-width:200px"><span class="jobname">'+esc(j.name)+'</span><span class="jobcode">'+esc(j.code)+'</span></td>'
+          + '<td data-label="Customer" style="min-width:150px"><span class="cust">'+esc(c.name)
+              + (c.company ? '<small>'+esc(c.company)+'</small>'
+                           : (c.saved ? '' : '<small>Walk-in · '+esc(c.phone||"no number")+'</small>'))+'</span></td>'
+          + '<td data-label="Assigned">'+peopleHTML(j.assigned,false)+'</td>'
+          + '<td data-label="Progress">'+pipeHTML(j.status,false)+'</td>'
+          + '<td data-label="Status"><span class="chip '+chipClass(j.status)+'"><span class="dot"></span>'+esc(statusMeta(j.status).label)+'</span></td>'
+          + '<td data-label="Total" class="t-right"><span class="money">'+money(j.total)+'</span></td>'
+          + '<td data-label="Balance" class="t-right"><span class="money '+(bal>0?"money-due":"money-ok")+'">'
               + (bal>0 ? money(bal) : "Settled") + '</span></td>'
-          + '<td class="t-nowrap"><span class="money" style="font-size:12px">'+fmtDate(j.dueDate)+'</span>'
+          + '<td data-label="Deadline" class="t-nowrap"><span class="money" style="font-size:12px">'+fmtDate(j.dueDate)+'</span>'
               + (due ? ' <span class="chip '+due.cls+'" style="margin-left:4px">'+due.text+'</span>' : '')+'</td>'
           + '</tr>';
       }).join("")
@@ -922,8 +1147,8 @@ function filteredJobs(){
   return db.jobs.filter(function(j){
     if(!tab.test(j)) return false;
     if(!q) return true;
-    const c = custById(j.customerId);
-    return (j.name+" "+j.code+" "+(c?c.name+" "+c.company:"")+" "+statusMeta(j.status).label)
+    const c = jobCustomer(j);
+    return (j.name+" "+j.code+" "+c.name+" "+c.company+" "+c.phone+" "+statusMeta(j.status).label)
            .toLowerCase().indexOf(q) > -1;
   }).sort(function(a,b){ return (a.dueDate||"9999").localeCompare(b.dueDate||"9999"); });
 }
@@ -970,16 +1195,17 @@ function renderPayments(){
         + '<th class="t-right">Total</th><th class="t-right">Advance</th><th class="t-right">Final</th><th class="t-right">Balance</th>'
         + '</tr></thead><tbody>'
         + owing.map(function(j){
-            const c = custById(j.customerId);
+            const c = jobCustomer(j);
             return '<tr data-job="'+j.id+'">'
-              + '<td><span class="jobname">'+esc(j.name)+'</span><span class="jobcode">'+esc(j.code)+'</span></td>'
-              + '<td><span class="cust">'+esc(c?c.name:"—")+(c&&c.company?'<small>'+esc(c.company)+'</small>':'')+'</span></td>'
-              + '<td><span class="money" style="font-size:12px">'+esc(jobPhone(j)||"—")+'</span></td>'
-              + '<td><span class="chip '+chipClass(j.status)+'"><span class="dot"></span>'+esc(statusMeta(j.status).label)+'</span></td>'
-              + '<td class="t-right"><span class="money">'+money(j.total)+'</span></td>'
-              + '<td class="t-right"><span class="money '+(j.advance?"":"money-zero")+'">'+(j.advance?money(j.advance):"—")+'</span></td>'
-              + '<td class="t-right"><span class="money '+(j.finalAmount?"":"money-zero")+'">'+(j.finalAmount?money(j.finalAmount):"—")+'</span></td>'
-              + '<td class="t-right"><span class="money money-due">'+money(balance(j))+'</span></td>'
+              + '<td class="td-primary"><span class="jobname">'+esc(j.name)+'</span><span class="jobcode">'+esc(j.code)+'</span></td>'
+              + '<td data-label="Customer"><span class="cust">'+esc(c.name)
+                  +(c.company?'<small>'+esc(c.company)+'</small>':(c.saved?'':'<small>Walk-in</small>'))+'</span></td>'
+              + '<td data-label="Contact"><span class="money" style="font-size:12px">'+esc(c.phone||"—")+'</span></td>'
+              + '<td data-label="Status"><span class="chip '+chipClass(j.status)+'"><span class="dot"></span>'+esc(statusMeta(j.status).label)+'</span></td>'
+              + '<td data-label="Total" class="t-right"><span class="money">'+money(j.total)+'</span></td>'
+              + '<td data-label="Advance" class="t-right"><span class="money '+(j.advance?"":"money-zero")+'">'+(j.advance?money(j.advance):"—")+'</span></td>'
+              + '<td data-label="Final" class="t-right"><span class="money '+(j.finalAmount?"":"money-zero")+'">'+(j.finalAmount?money(j.finalAmount):"—")+'</span></td>'
+              + '<td data-label="Balance" class="t-right"><span class="money money-due">'+money(balance(j))+'</span></td>'
               + '</tr>';
           }).join("")
         + '</tbody></table></div>'
@@ -1008,14 +1234,14 @@ function renderCustomers(){
       + '</tr></thead><tbody>'
       + rows.map(function(r){
           return '<tr data-customer="'+r.c.id+'">'
-            + '<td><span class="jobname">'+esc(r.c.name)+'</span>'
-                + (r.live ? '<span class="jobcode">'+r.live+' job'+(r.live>1?'s':'')+' running</span>' : '')+'</td>'
-            + '<td><span class="cust">'+esc(r.c.company||"—")+'</span></td>'
-            + '<td><span class="money" style="font-size:12px">'+esc(r.c.phone||"—")+'</span></td>'
-            + '<td><span style="color:var(--muted);font-size:12px">'+esc(r.c.note||"—")+'</span></td>'
-            + '<td class="t-right"><span class="money">'+r.n+'</span></td>'
-            + '<td class="t-right"><span class="money">'+money(r.value)+'</span></td>'
-            + '<td class="t-right"><span class="money '+(r.owed>0?"money-due":"money-zero")+'">'+(r.owed>0?money(r.owed):"—")+'</span></td>'
+            + '<td class="td-primary"><span class="jobname">'+esc(r.c.name)+'</span>'
+                + (r.live ? '<span class="jobcode">'+plural(r.live,"job")+' running</span>' : '')+'</td>'
+            + '<td data-label="Company"><span class="cust">'+esc(r.c.company||"—")+'</span></td>'
+            + '<td data-label="Phone"><span class="money" style="font-size:12px">'+esc(r.c.phone||"—")+'</span></td>'
+            + '<td data-label="Note"><span style="color:var(--muted);font-size:12px">'+esc(r.c.note||"—")+'</span></td>'
+            + '<td data-label="Jobs" class="t-right"><span class="money">'+r.n+'</span></td>'
+            + '<td data-label="Total value" class="t-right"><span class="money">'+money(r.value)+'</span></td>'
+            + '<td data-label="Owes" class="t-right"><span class="money '+(r.owed>0?"money-due":"money-zero")+'">'+(r.owed>0?money(r.owed):"—")+'</span></td>'
             + '</tr>';
         }).join("")
       + '</tbody></table></div>'
@@ -1040,14 +1266,14 @@ function renderTeam(){
       + '</tr></thead><tbody>'
       + rows.map(function(r){
           return '<tr data-staff="'+r.s.id+'">'
-            + '<td><div style="display:flex;align-items:center;gap:9px">'
+            + '<td class="td-primary"><div style="display:flex;align-items:center;gap:9px">'
               + '<span class="av" style="background:'+avColor(r.s.id)+'">'+esc(initials(r.s.name))+'</span>'
               + '<span class="jobname" style="margin:0">'+esc(r.s.name)+'</span></div></td>'
-            + '<td><span class="cust">'+esc(r.s.role||"—")+'</span></td>'
-            + '<td><span class="money" style="font-size:12px">'+esc(r.s.phone||"—")+'</span></td>'
-            + '<td class="t-right"><span class="money">'+r.live+'</span></td>'
-            + '<td class="t-right"><span class="money">'+r.done+'</span></td>'
-            + '<td>'+(r.s.active
+            + '<td data-label="Role"><span class="cust">'+esc(r.s.role||"—")+'</span></td>'
+            + '<td data-label="Phone"><span class="money" style="font-size:12px">'+esc(r.s.phone||"—")+'</span></td>'
+            + '<td data-label="Jobs running" class="t-right"><span class="money">'+r.live+'</span></td>'
+            + '<td data-label="Completed" class="t-right"><span class="money">'+r.done+'</span></td>'
+            + '<td data-label="Status">'+(r.s.active
                 ? '<span class="chip ph-done"><span class="dot"></span>Active</span>'
                 : '<span class="chip"><span class="dot"></span>Inactive</span>')+'</td>'
             + '</tr>';
@@ -1085,7 +1311,7 @@ function closeDrawer(){
 function jobDetail(id){
   const j = db.jobs.find(function(x){ return x.id===id; });
   if(!j) return;
-  const c = custById(j.customerId);
+  const c = jobCustomer(j);
   const bal = balance(j);
   const due = dueState(j);
 
@@ -1131,9 +1357,11 @@ function jobDetail(id){
       + '<div class="fieldset">'
         + '<span class="lbl">Customer</span>'
         + '<dl class="dl">'
-          + '<dt>Name</dt><dd>'+esc(c?c.name:"—")+'</dd>'
-          + '<dt>Company</dt><dd'+(c&&c.company?'':' class="muted"')+'>'+esc(c&&c.company?c.company:"Individual customer")+'</dd>'
-          + '<dt>Contact</dt><dd class="num">'+esc(jobPhone(j)||"—")+'</dd>'
+          + '<dt>Name</dt><dd>'+esc(c.name)
+              + (c.saved ? '' : ' <span class="chip" style="margin-left:4px">Walk-in</span>')+'</dd>'
+          + '<dt>Company</dt><dd'+(c.company?'':' class="muted"')+'>'
+              + esc(c.company || (c.saved ? "Individual customer" : "Not a saved customer"))+'</dd>'
+          + '<dt>Contact</dt><dd class="num">'+esc(c.phone||"—")+'</dd>'
         + '</dl>'
       + '</div>'
 
@@ -1178,15 +1406,19 @@ function jobDetail(id){
 /* ===================== JOB FORM ===================== */
 
 let formPicks = [];
+let custMode = "saved";          // "saved" | "walkin"
 
-function jobForm(id){
-  const editing = !!id;
-  const j = editing ? db.jobs.find(function(x){ return x.id===id; })
-                    : {id:"", code:"JOB-2026-"+String(db.nextJobNo).padStart(4,"0"), name:"", customerId:"",
-                       phone:"", startDate:TODAY, dueDate:"", assigned:[], status:"design",
-                       total:"", advance:"", advanceDate:"", handoverDate:"", finalAmount:"", finalDate:"", notes:""};
-  formPicks = (j.assigned||[]).slice();
+function blankJob(){
+  return {id:"", code:nextCode(), name:"", customerId:"", customerName:"",
+          phone:"", startDate:TODAY, dueDate:"", assigned:[], status:"design",
+          total:"", advance:"", advanceDate:"", handoverDate:"",
+          finalAmount:"", finalDate:"", notes:""};
+}
+function nextCode(){ return "JOB-2026-" + String(db.nextJobNo).padStart(4,"0"); }
 
+/* The form body is shared by the drawer and the standalone New Job page, so it
+   lives in one place and both callers wrap it in their own chrome. */
+function jobFormBody(j){
   const custOpts = db.customers.slice()
     .sort(function(a,b){ return a.name.localeCompare(b.name); })
     .map(function(c){
@@ -1200,75 +1432,107 @@ function jobForm(id){
     + EXCEPTIONS.map(function(s){ return '<option value="'+s.id+'"'+(s.id===j.status?' selected':'')+'>'+esc(s.label)+'</option>'; }).join("")
     + '</optgroup>';
 
+  return ''
+    + '<div class="fieldset">'
+      + '<span class="lbl">The job</span>'
+      + '<label class="f"><span>Job name</span>'
+        + '<input class="input" name="name" value="'+esc(j.name)+'" placeholder="e.g. Wedding invitation cards — 250 pcs" autocomplete="off"></label>'
+    + '</div>'
+
+    + '<div class="fieldset">'
+      + '<span class="lbl">Customer</span>'
+      + '<div class="seg" role="group" aria-label="Customer type">'
+        + '<button type="button" data-custmode="saved"  aria-pressed="'+(custMode==="saved")+'">Saved customer</button>'
+        + '<button type="button" data-custmode="walkin" aria-pressed="'+(custMode==="walkin")+'">Walk-in</button>'
+      + '</div>'
+
+      + '<div id="custSaved"'+(custMode==="saved"?'':' hidden')+'>'
+        + '<div class="grid2">'
+          + '<label class="f"><span>Customer</span>'
+            + '<select class="select" name="customerId"><option value="">Select a saved customer…</option>'+custOpts+'</select></label>'
+          + '<label class="f"><span>Contact number <em>— override</em></span>'
+            + '<input class="input num" name="phone" value="'+esc(j.customerId?j.phone:"")+'" placeholder="fills from customer" autocomplete="off"></label>'
+        + '</div>'
+        + '<p class="hint" id="custHint"></p>'
+      + '</div>'
+
+      + '<div id="custWalkin"'+(custMode==="walkin"?'':' hidden')+'>'
+        + '<div class="grid2">'
+          + '<label class="f"><span>Customer name</span>'
+            + '<input class="input" name="customerName" value="'+esc(j.customerName)+'" placeholder="e.g. Sunil Wickramasinghe" autocomplete="off"></label>'
+          + '<label class="f"><span>Phone number</span>'
+            + '<input class="input num" name="walkPhone" type="tel" value="'+esc(j.customerId?"":j.phone)+'" placeholder="077 123 4567" autocomplete="off"></label>'
+        + '</div>'
+        + '<label class="check"><input type="checkbox" name="saveCustomer">'
+          + '<span>Also save them to my customer list</span></label>'
+        + '<p class="hint">Walk-ins stay on this job only. Tick the box if they are likely to come back.</p>'
+      + '</div>'
+    + '</div>'
+
+    + '<div class="fieldset">'
+      + '<span class="lbl">Schedule</span>'
+      + '<div class="grid2">'
+        + '<label class="f"><span>Start date</span><input class="input num" type="date" name="startDate" value="'+esc(j.startDate)+'"></label>'
+        + '<label class="f"><span>Deadline</span><input class="input num" type="date" name="dueDate" value="'+esc(j.dueDate)+'"></label>'
+      + '</div>'
+      + '<div class="grid2">'
+        + '<label class="f"><span>Current stage</span><select class="select" name="status">'+statusOpts+'</select></label>'
+        + '<label class="f"><span>Handover date <em>— if done</em></span><input class="input num" type="date" name="handoverDate" value="'+esc(j.handoverDate)+'"></label>'
+      + '</div>'
+    + '</div>'
+
+    + '<div class="fieldset">'
+      + '<span class="lbl">Assigned to <em style="font-style:normal;text-transform:none;letter-spacing:0">— pick one or two</em></span>'
+      + '<div class="picks" id="picks">'
+        + db.staff.filter(function(s){ return s.active; }).map(function(s){
+            const on = formPicks.indexOf(s.id)>-1;
+            return '<button type="button" class="pick" data-pick="'+s.id+'" aria-pressed="'+on+'">'
+              + '<span class="av" style="background:'+avColor(s.id)+'">'+esc(initials(s.name))+'</span>'
+              + esc(s.name)+'</button>';
+          }).join("")
+      + '</div>'
+    + '</div>'
+
+    + '<div class="fieldset">'
+      + '<span class="lbl">Money</span>'
+      + '<label class="f"><span>Job total (LKR)</span>'
+        + '<input class="input num" name="total" inputmode="numeric" value="'+esc(j.total)+'" placeholder="0"></label>'
+      + '<div class="grid2">'
+        + '<label class="f"><span>Advance paid</span><input class="input num" name="advance" inputmode="numeric" value="'+esc(j.advance)+'" placeholder="0"></label>'
+        + '<label class="f"><span>Advance date</span><input class="input num" type="date" name="advanceDate" value="'+esc(j.advanceDate)+'"></label>'
+      + '</div>'
+      + '<div class="grid2">'
+        + '<label class="f"><span>Final payment</span><input class="input num" name="finalAmount" inputmode="numeric" value="'+esc(j.finalAmount)+'" placeholder="0"></label>'
+        + '<label class="f"><span>Final payment date</span><input class="input num" type="date" name="finalDate" value="'+esc(j.finalDate)+'"></label>'
+      + '</div>'
+      + '<div class="calc"><span class="lbl">Pending balance</span><span class="calc-val" id="calcBal">Rs 0</span></div>'
+    + '</div>'
+
+    + '<div class="fieldset">'
+      + '<span class="lbl">Notes</span>'
+      + '<textarea class="textarea" name="notes" placeholder="Paper stock, finishing, proof approval, delivery instructions…">'+esc(j.notes)+'</textarea>'
+    + '</div>'
+
+    + '<p class="err" id="formErr" hidden></p>';
+}
+
+function initJobForm(j){
+  formPicks = (j.assigned||[]).slice();
+  custMode = (!j.customerId && j.customerName) ? "walkin" : "saved";
+}
+
+function jobForm(id){
+  const editing = !!id;
+  const j = editing ? db.jobs.find(function(x){ return x.id===id; }) : blankJob();
+  initJobForm(j);
+
   openDrawer(
     '<div class="drawer-head">'
       + '<div style="min-width:0"><h2>'+(editing?"Edit job":"New job")+'</h2>'
       + '<span class="jobcode">'+esc(j.code)+'</span></div>'
       + '<button class="btn btn-ghost btn-sm" data-close aria-label="Close">'+ICONS.close+'</button>'
     + '</div>'
-
-    + '<form class="drawer-body" id="jobForm" novalidate>'
-
-      + '<div class="fieldset">'
-        + '<span class="lbl">The job</span>'
-        + '<label class="f"><span>Job name</span>'
-          + '<input class="input" name="name" value="'+esc(j.name)+'" placeholder="e.g. Wedding invitation cards — 250 pcs" autocomplete="off"></label>'
-        + '<div class="grid2">'
-          + '<label class="f"><span>Customer</span>'
-            + '<select class="select" name="customerId"><option value="">Select a saved customer…</option>'+custOpts+'</select></label>'
-          + '<label class="f"><span>Contact number <em>— override</em></span>'
-            + '<input class="input num" name="phone" value="'+esc(j.phone)+'" placeholder="fills from customer" autocomplete="off"></label>'
-        + '</div>'
-        + '<p class="hint" id="custHint"></p>'
-      + '</div>'
-
-      + '<div class="fieldset">'
-        + '<span class="lbl">Schedule</span>'
-        + '<div class="grid2">'
-          + '<label class="f"><span>Start date</span><input class="input num" type="date" name="startDate" value="'+esc(j.startDate)+'"></label>'
-          + '<label class="f"><span>Deadline</span><input class="input num" type="date" name="dueDate" value="'+esc(j.dueDate)+'"></label>'
-        + '</div>'
-        + '<div class="grid2">'
-          + '<label class="f"><span>Current stage</span><select class="select" name="status">'+statusOpts+'</select></label>'
-          + '<label class="f"><span>Handover date <em>— if done</em></span><input class="input num" type="date" name="handoverDate" value="'+esc(j.handoverDate)+'"></label>'
-        + '</div>'
-      + '</div>'
-
-      + '<div class="fieldset">'
-        + '<span class="lbl">Assigned to <em style="font-style:normal;text-transform:none;letter-spacing:0">— pick one or two</em></span>'
-        + '<div class="picks" id="picks">'
-          + db.staff.filter(function(s){ return s.active; }).map(function(s){
-              const on = formPicks.indexOf(s.id)>-1;
-              return '<button type="button" class="pick" data-pick="'+s.id+'" aria-pressed="'+on+'">'
-                + '<span class="av" style="background:'+avColor(s.id)+'">'+esc(initials(s.name))+'</span>'
-                + esc(s.name)+'</button>';
-            }).join("")
-        + '</div>'
-      + '</div>'
-
-      + '<div class="fieldset">'
-        + '<span class="lbl">Money</span>'
-        + '<label class="f"><span>Job total (LKR)</span>'
-          + '<input class="input num" name="total" inputmode="numeric" value="'+esc(j.total)+'" placeholder="0"></label>'
-        + '<div class="grid2">'
-          + '<label class="f"><span>Advance paid</span><input class="input num" name="advance" inputmode="numeric" value="'+esc(j.advance)+'" placeholder="0"></label>'
-          + '<label class="f"><span>Advance date</span><input class="input num" type="date" name="advanceDate" value="'+esc(j.advanceDate)+'"></label>'
-        + '</div>'
-        + '<div class="grid2">'
-          + '<label class="f"><span>Final payment</span><input class="input num" name="finalAmount" inputmode="numeric" value="'+esc(j.finalAmount)+'" placeholder="0"></label>'
-          + '<label class="f"><span>Final payment date</span><input class="input num" type="date" name="finalDate" value="'+esc(j.finalDate)+'"></label>'
-        + '</div>'
-        + '<div class="calc"><span class="lbl">Pending balance</span><span class="calc-val" id="calcBal">Rs 0</span></div>'
-      + '</div>'
-
-      + '<div class="fieldset">'
-        + '<span class="lbl">Notes</span>'
-        + '<textarea class="textarea" name="notes" placeholder="Paper stock, finishing, proof approval, delivery instructions…">'+esc(j.notes)+'</textarea>'
-      + '</div>'
-
-      + '<p class="err" id="formErr" hidden></p>'
-    + '</form>'
-
+    + '<form class="drawer-body" id="jobForm" novalidate>' + jobFormBody(j) + '</form>'
     + '<div class="drawer-foot">'
       + '<button class="btn btn-sm" data-close>Cancel</button>'
       + '<button class="btn btn-sm btn-primary" data-save-job="'+(editing?j.id:"")+'">'+(editing?"Save changes":"Add job")+'</button>'
@@ -1277,6 +1541,49 @@ function jobForm(id){
 
   updateCalc();
   updateCustHint();
+}
+
+/* Standalone New Job page — the whole screen is the form, nothing else. */
+function renderNewJobPage(){
+  const j = blankJob();
+  initJobForm(j);
+
+  $("#view").innerHTML =
+    '<section class="card formpage">'
+      + '<div class="card-head">'
+        + '<span class="lbl">Job number</span>'
+        + '<span class="jobcode" style="margin-left:0">'+esc(j.code)+'</span>'
+      + '</div>'
+      + '<form class="formpage-body" id="jobForm" novalidate>' + jobFormBody(j) + '</form>'
+      + '<div class="formpage-foot">'
+        + '<button class="btn" data-nav="jobs">Cancel</button>'
+        + '<button class="btn btn-primary" data-save-job="" data-stay="1">Add job</button>'
+      + '</div>'
+    + '</section>';
+
+  updateCalc();
+  updateCustHint();
+}
+
+/* Shown after saving from the standalone page, instead of navigating away. */
+function newJobSaved(job){
+  $("#view").innerHTML =
+    '<section class="card formpage savedmsg">'
+      + '<div class="savedmsg-body">'
+        + '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">'
+          + '<circle cx="20" cy="20" r="18" stroke="var(--ok)" stroke-width="2" opacity=".35"/>'
+          + '<path d="m12.5 20.5 5 5 10-11" stroke="var(--ok)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
+        + '</svg>'
+        + '<h3>Job added</h3>'
+        + '<p class="jobcode">'+esc(job.code)+'</p>'
+        + '<p>'+esc(job.name)+'</p>'
+        + '<div class="savedmsg-actions">'
+          + '<button class="btn btn-primary" data-nav="new">Add another job</button>'
+          + '<button class="btn" data-open-job="'+job.id+'">Open this job</button>'
+          + '<button class="btn btn-ghost" data-nav="jobs">Go to all jobs</button>'
+        + '</div>'
+      + '</div>'
+    + '</section>';
 }
 
 function updateCalc(){
@@ -1295,16 +1602,16 @@ function updateCalc(){
 }
 
 function updateCustHint(){
-  const f = $("#jobForm"); if(!f) return;
+  const f = $("#jobForm"); if(!f || !f.customerId) return;
+  const h = $("#custHint"); if(!h) return;
   const c = custById(f.customerId.value);
-  const h = $("#custHint");
-  if(!c){ h.textContent = "Pick a saved customer, or add a new one from the Customers page."; return; }
+  if(!c){ h.textContent = "Pick a saved customer, or switch to Walk-in for a one-off."; return; }
   h.innerHTML = 'Using <b>'+esc(c.company || "individual customer")+'</b> · '
     + '<span class="num">'+esc(c.phone||"no number on file")+'</span>'
     + (c.note ? ' · '+esc(c.note) : '');
 }
 
-function saveJob(id){
+function saveJob(id, stayOnPage){
   const f = $("#jobForm");
   const err = $("#formErr");
   const n = function(v){ return Number(String(v).replace(/[^0-9.-]/g,"")) || 0; };
@@ -1313,7 +1620,21 @@ function saveJob(id){
   f.querySelectorAll(".bad").forEach(function(el){ el.classList.remove("bad"); });
 
   if(!f.name.value.trim()){ problems.push("Give the job a name."); f.name.classList.add("bad"); }
-  if(!f.customerId.value){ problems.push("Choose a customer."); f.customerId.classList.add("bad"); }
+
+  if(custMode === "walkin"){
+    // A walk-in has no record anywhere else, so the name and number on the job
+    // are the only way to ever contact them again — both are required.
+    if(!f.customerName.value.trim()){
+      problems.push("Enter the customer's name."); f.customerName.classList.add("bad");
+    }
+    if(!f.walkPhone.value.trim()){
+      problems.push("Enter a phone number."); f.walkPhone.classList.add("bad");
+    }
+  }else if(!f.customerId.value){
+    problems.push("Choose a customer, or switch to Walk-in.");
+    f.customerId.classList.add("bad");
+  }
+
   if(!formPicks.length){ problems.push("Assign at least one person."); }
   if(f.startDate.value && f.dueDate.value && f.dueDate.value < f.startDate.value){
     problems.push("The deadline is before the start date.");
@@ -1323,30 +1644,55 @@ function saveJob(id){
   if(problems.length){
     err.textContent = problems.join(" ");
     err.hidden = false;
+    err.scrollIntoView({block:"nearest", behavior:"smooth"});
     return;
   }
   err.hidden = true;
 
   const data = {
-    name:f.name.value.trim(), customerId:f.customerId.value, phone:f.phone.value.trim(),
+    name:f.name.value.trim(),
     startDate:f.startDate.value, dueDate:f.dueDate.value, assigned:formPicks.slice(),
     status:f.status.value, total:n(f.total.value), advance:n(f.advance.value),
     advanceDate:f.advanceDate.value, handoverDate:f.handoverDate.value,
     finalAmount:n(f.finalAmount.value), finalDate:f.finalDate.value, notes:f.notes.value.trim()
   };
 
+  if(custMode === "walkin"){
+    data.customerName = f.customerName.value.trim();
+    data.phone        = f.walkPhone.value.trim();
+    data.customerId   = "";
+    if(f.saveCustomer.checked){
+      // Promote them to a real customer and point the job at that record, so
+      // from here on it behaves exactly like any other saved customer.
+      const c = {id:uid("c"), name:data.customerName, company:"", phone:data.phone, email:"", note:""};
+      db.customers.push(c);
+      data.customerId   = c.id;
+      data.customerName = "";
+      toast(c.name + " saved to your customers");
+    }
+  }else{
+    data.customerId   = f.customerId.value;
+    data.customerName = "";
+    data.phone        = f.phone.value.trim();
+  }
+
+  let job;
   if(id){
-    const j = db.jobs.find(function(x){ return x.id===id; });
-    Object.assign(j, data);
+    job = db.jobs.find(function(x){ return x.id===id; });
+    Object.assign(job, data);
     toast("Job updated");
   }else{
     data.id = uid("j");
-    data.code = "JOB-2026-" + String(db.nextJobNo).padStart(4,"0");
+    data.code = nextCode();
     db.nextJobNo++;
     db.jobs.unshift(data);
-    toast("Job " + data.code + " added");
+    job = data;
+    if(!stayOnPage) toast("Job " + data.code + " added");
   }
-  save(); closeDrawer(); render();
+  save();
+
+  if(stayOnPage){ renderNav(); newJobSaved(job); window.scrollTo(0,0); return; }
+  closeDrawer(); render();
 }
 
 /* ===================== CUSTOMER / STAFF FORMS ===================== */
@@ -1463,6 +1809,7 @@ function saveStaff(id){
 const HEADERS = {
   dashboard:{t:"Dashboard", s:"Everything happening in the shop right now"},
   jobs:{t:"Jobs", s:"Every job in the register"},
+  "new":{t:"New Job", s:"Fill this in and the job goes straight into the register"},
   payments:{t:"Payments", s:"Advances, final payments and what is still owed"},
   customers:{t:"Customers", s:"Saved customers you can pick when adding a job"},
   team:{t:"Team", s:"People you can assign jobs to"}
@@ -1489,11 +1836,31 @@ function renderHeader(){
   $("#pageActions").innerHTML = actions;
 }
 
+function go(to, replace){
+  if(ROUTES.indexOf(to) === -1) to = "dashboard";
+  if(to === "new" && !canEdit()) to = "jobs";   // owner view has no entry form
+  route = to;
+  const hash = "#" + to;
+  if(location.hash !== hash){
+    if(replace) history.replaceState(null, "", hash);
+    else location.hash = hash;                   // fires hashchange → render()
+    if(!replace) return;
+  }
+  render();
+  window.scrollTo(0,0);
+}
+
+function routeFromHash(){
+  const h = (location.hash || "").replace(/^#\/?/, "").toLowerCase();
+  return ROUTES.indexOf(h) > -1 ? h : "dashboard";
+}
+
 function render(){
   renderNav();
   renderHeader();
   if(route==="dashboard") renderDashboard();
   else if(route==="jobs") renderJobs();
+  else if(route==="new") renderNewJobPage();
   else if(route==="payments") renderPayments();
   else if(route==="customers") renderCustomers();
   else if(route==="team") renderTeam();
@@ -1506,9 +1873,30 @@ document.addEventListener("click", function(e){
 
   const nav = t.closest("[data-nav]");
   if(nav){
-    route = nav.getAttribute("data-nav");
-    if(route==="jobs" && filter.q) filter.tab = "all";
-    render(); window.scrollTo(0,0); return;
+    const to = nav.getAttribute("data-nav");
+    if(to==="jobs" && filter.q) filter.tab = "all";
+    closeDrawer();
+    if(to==="new" && route==="new") renderNewJobPage();   // "Add another" — fresh blank form
+    else go(to);
+    return;
+  }
+
+  const openJob = t.closest("[data-open-job]");
+  if(openJob){ jobDetail(openJob.getAttribute("data-open-job")); return; }
+
+  const mode = t.closest("[data-custmode]");
+  if(mode){
+    custMode = mode.getAttribute("data-custmode");
+    document.querySelectorAll("[data-custmode]").forEach(function(b){
+      b.setAttribute("aria-pressed", b.getAttribute("data-custmode")===custMode);
+    });
+    const saved = $("#custSaved"), walk = $("#custWalkin");
+    if(saved) saved.hidden = custMode!=="saved";
+    if(walk)  walk.hidden  = custMode!=="walkin";
+    const err = $("#formErr"); if(err) err.hidden = true;
+    const focus = custMode==="walkin" ? $("#jobForm [name=customerName]") : $("#jobForm [name=customerId]");
+    if(focus) focus.focus();
+    return;
   }
 
   const tab = t.closest("[data-tab]");
@@ -1538,7 +1926,10 @@ document.addEventListener("click", function(e){
   if(editJob){ jobForm(editJob.getAttribute("data-edit-job")); return; }
 
   const saveJobBtn = t.closest("[data-save-job]");
-  if(saveJobBtn){ saveJob(saveJobBtn.getAttribute("data-save-job")); return; }
+  if(saveJobBtn){
+    saveJob(saveJobBtn.getAttribute("data-save-job"), saveJobBtn.hasAttribute("data-stay"));
+    return;
+  }
 
   const saveCustBtn = t.closest("[data-save-customer]");
   if(saveCustBtn){ saveCustomer(saveCustBtn.getAttribute("data-save-customer")); return; }
@@ -1609,25 +2000,39 @@ document.addEventListener("click", function(e){
 
   if(t.id === "scrim"){ closeDrawer(); return; }
 
-  if(t.id === "role-shop" || t.id === "role-owner"){
-    role = t.id === "role-shop" ? "shop" : "owner";
-    $("#role-shop").setAttribute("aria-pressed", role==="shop");
-    $("#role-owner").setAttribute("aria-pressed", role==="owner");
-    $("#roleNote").textContent = role==="shop"
-      ? "Shop staff — full edit access."
-      : "Owner abroad — sees everything, changes nothing.";
-    closeDrawer(); render();
+  // The switch is rendered twice — sidebar on desktop, top bar on mobile —
+  // so update every instance, not just the one that was clicked.
+  const roleBtn = t.closest("[data-role]");
+  if(roleBtn){
+    role = roleBtn.getAttribute("data-role");
+    document.querySelectorAll("[data-role]").forEach(function(b){
+      b.setAttribute("aria-pressed", b.getAttribute("data-role")===role);
+    });
+    document.querySelectorAll(".js-rolenote").forEach(function(p){
+      p.textContent = role==="shop"
+        ? "Shop staff — full edit access."
+        : "Owner abroad — sees everything, changes nothing.";
+    });
+    closeDrawer();
+    go(route === "new" && role === "owner" ? "jobs" : route, true);
     toast(role==="shop" ? "Shop view — you can add and edit" : "Owner view — read only");
     return;
   }
 
   if(t.id === "resetDemo"){
     if(confirm("Reset the demo back to the original sample data?")){
-      db = seed(); save(); closeDrawer(); route="dashboard"; filter={q:"",tab:"active"}; render();
+      db = seed(); save(); closeDrawer(); filter={q:"",tab:"active"};
+      go("dashboard", true);
       toast("Demo data reset");
     }
     return;
   }
+});
+
+window.addEventListener("hashchange", function(){
+  const to = routeFromHash();
+  route = (to === "new" && !canEdit()) ? "jobs" : to;
+  closeDrawer(); render(); window.scrollTo(0,0);
 });
 
 document.addEventListener("input", function(e){
@@ -1641,7 +2046,7 @@ document.addEventListener("input", function(e){
       const hint = document.querySelector(".content .hint");
       if(hint) hint.innerHTML = 'Showing <b class="num">'+list.length+'</b> of '+db.jobs.length+' jobs. Click any row to open it.';
     }else{
-      route = "jobs"; filter.tab = "all"; render();
+      filter.tab = "all"; go("jobs", true);
       const s = $("#search"); if(s){ s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
     }
     return;
@@ -1660,14 +2065,10 @@ document.addEventListener("keydown", function(e){
   if(e.key === "Escape" && drawerOpen) closeDrawer();
 });
 
-window.addEventListener("resize", function(){
-  const split = document.querySelector(".dash-split");
-  if(split) split.style.gridTemplateColumns = window.innerWidth < 1000 ? "1fr" : "minmax(0,1.35fr) minmax(0,1fr)";
-});
-
 /* ===================== BOOT ===================== */
 load();
-render();
+route = routeFromHash();
+go(route, true);
 
 })();
 </script>
