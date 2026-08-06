@@ -20,12 +20,67 @@ That means once this is hosted:
 - The owner opens the same URL and sees the **original sample data**, not the
   shop's work.
 - Clearing browser data wipes everything.
-- There are no user accounts — the Shop / Owner switch is a UI demonstration,
-  not real access control.
+- There are no user accounts. The staff/admin split keeps people out of screens
+  they don't need, but it is not enforced anywhere a determined person can't
+  reach.
 
 It is exactly right for showing the owner how the system will look and work,
 and for collecting his feedback before the real build. See
 [What the real version needs](#what-the-real-version-needs) below.
+
+---
+
+## Two roles, no login
+
+There are no accounts and no passwords. **The role comes from the link you
+open**, and the device remembers it.
+
+| Who | Link to give them | Lands on |
+| --- | --- | --- |
+| Shop staff | `https://your-subdomain/` | The New Job form |
+| Admin | `https://your-subdomain/#admin` | The Dashboard |
+
+Opening the admin link once turns that phone or laptop into an admin device
+until **Leave admin** is used. Staff never need to do anything — the plain
+address is already theirs.
+
+### What each role can do
+
+| | Staff | Admin |
+| --- | :---: | :---: |
+| Create jobs | ✅ | ✅ |
+| Edit a job's details, stage, notes | ✅ | ✅ |
+| Add customers and outsourcing places | ✅ | ✅ |
+| Enter total + advance **when creating a job** | ✅ | ✅ |
+| **Change any amount afterwards** | ❌ | ✅ |
+| Record final payments | ❌ | ✅ |
+| Record money paid to an outsourcer | ❌ | ✅ |
+| Dashboard, Payments, Analytics, Team | ❌ | ✅ |
+| Delete anything | ❌ | ✅ |
+
+Staff typing an admin address get sent back to the job form.
+
+### ⚠️ This is convenience, not security
+
+Anyone who learns the admin link can use it. That is fine for a small shop where
+the staff are trusted and the point is to keep people out of screens they don't
+need — but it is **not** protection against someone determined.
+
+Real protection needs accounts and server-side checks, which arrive with the
+backend (see [What the real version needs](#what-the-real-version-needs)). Until
+then, don't put the admin link on a shared device or a WhatsApp group.
+
+---
+
+## Putting it on a staff phone
+
+The staff link opens straight into the job form, so the fastest setup is a home
+screen shortcut:
+
+**Android (Chrome)** — open the staff link → menu (⋮) → **Add to Home screen**.
+
+It then opens like an app: tap the icon, the job form is already there. The
+**☰ menu** at the top reaches Jobs, Customers and Outsourcing.
 
 ---
 
@@ -72,6 +127,15 @@ one-off with the option to save them afterwards. Only the name is required;
 company and phone are optional. Outsourced jobs are badged in the job list and
 counted on the Outsourcing page.
 
+On an outsourced job the shop keeps only the difference between what the
+customer pays and what the outsourcer charges, so the job also records:
+
+- **Agreed cost to them** — what the outsourcer charges
+- **Paid to them** and the date — admin only
+- **Your commission** — always calculated (`job total − their cost`), never typed
+
+Payments shows what is still owed out and the total commission earned.
+
 **Payments** — everything still owed, sorted by amount, flagging jobs already
 handed over with money outstanding.
 
@@ -89,6 +153,10 @@ on), which is what the type breakdown counts.
 
 Pending balance is always calculated (`total − advance − final`), never typed.
 
+Saving a job always asks for confirmation first, showing the customer, the
+deadline and the amounts — and reminding staff that the amounts are about to
+become admin-only.
+
 ### Pages
 
 Each page has its own address, so any of them can be bookmarked or linked to
@@ -96,30 +164,32 @@ directly:
 
 | Page | Link |
 | --- | --- |
-| Dashboard | `/#dashboard` |
+| Dashboard *(admin)* | `/#dashboard` |
 | Jobs | `/#jobs` |
 | **New Job** | `/#new` |
-| Payments | `/#payments` |
-| Analytics | `/#analytics` |
+| Payments *(admin)* | `/#payments` |
+| Analytics *(admin)* | `/#analytics` |
 | Customers | `/#customers` |
 | Outsourcing | `/#outsourcing` |
-| Team | `/#team` |
+| Team *(admin)* | `/#team` |
 
 **`/#new` is a page containing nothing but the job entry form.** Open it and you
 can fill in a job and save it without touching the rest of the system — useful
 as a phone shortcut or a link handed to someone who only ever needs to add jobs.
 After saving it confirms and offers to add another, rather than navigating away.
 
-It is hidden in Owner view, and opening the link directly in Owner view lands on
-the Jobs page instead.
+It is where staff land by default, which is the whole point of the phone
+shortcut.
 
 ### On a phone
 
 The layout is built for phones, not just shrunk to fit:
 
-- The sidebar becomes a bottom tab bar of five thumb-sized targets. Customers,
-  Outsourcing and Team sit behind **More**, since they're setup rather than
-  daily use.
+- **Staff** get a **☰ menu** at the top and no bottom bar — they land on the job
+  form and only occasionally need the other three pages.
+- **Admin** get a bottom tab bar of five thumb-sized targets, with Customers,
+  Outsourcing and Team behind **More**, since those are setup rather than daily
+  use.
 - Tables become stacked cards with labelled rows — an eight-column table is
   unreadable on a 390px screen.
 - Fields are 16px so iOS doesn't zoom in every time one is tapped.
@@ -215,8 +285,9 @@ To make this a system the shop and the owner genuinely share:
 
 1. **A database** — Postgres or MySQL, replacing `localStorage`.
 2. **An API** — to read and write jobs, customers and staff.
-3. **Login and roles** — real accounts, with the owner's read-only access
-   enforced on the server rather than in the browser.
+3. **Login and roles** — real accounts, with the staff/admin split enforced on
+   the server rather than in the browser, so payment fields can't be reached by
+   editing the page.
 4. **Backups** — a nightly dump, kept off the VPS.
 
 The screens and the data model in this demo carry over as-is; what gets added is

@@ -156,14 +156,24 @@ button{cursor:pointer; background:none; border:none; padding:0}
 .nav-more{display:none}
 .moresheet{display:none}
 
-.rail-foot{margin-top:auto; display:flex; flex-direction:column; gap:10px; padding-top:14px; border-top:1px solid var(--line-2)}
-.role{display:flex; background:var(--surface-2); border-radius:var(--r); padding:3px; gap:2px}
-.role button{
-  flex:1; padding:6px 4px; border-radius:6px; font-size:11.5px; font-weight:600;
-  color:var(--muted); transition:background .12s, color .12s;
+.rail-foot{margin-top:auto; display:flex; flex-direction:column; gap:8px; padding-top:14px; border-top:1px solid var(--line-2)}
+.whoami{display:flex; flex-direction:column; gap:5px; padding:0 4px}
+.whoami-badge{
+  align-self:flex-start; padding:3px 9px; border-radius:999px;
+  font-size:11px; font-weight:700; letter-spacing:.02em;
+  background:var(--surface-2); color:var(--ink-2); border:1px solid var(--line);
 }
-.role button[aria-pressed="true"]{background:var(--surface); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.09)}
-.role-note{font-size:11px; color:var(--faint); line-height:1.45; padding:0 4px}
+.whoami-badge.is-admin{background:var(--accent-soft); color:var(--accent); border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.whoami-note{font-size:11px; color:var(--faint); line-height:1.45}
+.js-leaveadmin{justify-content:center}
+.js-leaveadmin[hidden]{display:none}
+
+.menubtn{
+  display:none; align-items:center; justify-content:center;
+  width:38px; height:38px; border-radius:var(--r); flex:none;
+  color:var(--ink-2); border:1px solid var(--line); background:var(--surface);
+}
+.menubtn:hover{background:var(--surface-2)}
 
 /* ============ MAIN ============ */
 .main{flex:1; min-width:0; display:flex; flex-direction:column}
@@ -426,6 +436,18 @@ label.f > span em{font-style:normal; color:var(--faint); font-weight:500}
 #custSaved,#custWalkin{display:flex; flex-direction:column; gap:11px; margin-top:11px}
 #custSaved[hidden],#custWalkin[hidden]{display:none}
 
+.locked{display:flex; flex-direction:column; gap:10px}
+.locked-head{
+  display:flex; align-items:center; gap:8px; padding:9px 11px; border-radius:var(--r);
+  background:var(--warn-soft); color:var(--warn); font-size:12.5px; font-weight:600;
+  border:1px solid color-mix(in srgb,var(--warn) 26%,transparent);
+}
+.locked-head svg{flex:none}
+.outsrc-money{
+  display:flex; flex-direction:column; gap:11px; margin-top:13px;
+  padding-top:13px; border-top:1px dashed var(--line);
+}
+
 label.check{display:flex; align-items:center; gap:9px; cursor:pointer; font-size:13px; color:var(--ink-2)}
 label.check input{width:16px; height:16px; accent-color:var(--accent); flex:0 0 16px; cursor:pointer}
 
@@ -486,6 +508,33 @@ label.check input{width:16px; height:16px; accent-color:var(--accent); flex:0 0 
 }
 .tabs button[aria-pressed="true"]{background:var(--surface); color:var(--ink); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .tabs .n{font-family:var(--mono); font-size:10.5px; opacity:.6; margin-left:4px}
+
+/* ============ CONFIRM ============ */
+.confirm{
+  position:fixed; inset:0; z-index:75; display:none;
+  align-items:center; justify-content:center; padding:20px;
+  background:rgba(10,18,29,.5); backdrop-filter:blur(2px);
+}
+.confirm.open{display:flex}
+.confirm-box{
+  background:var(--surface); border:1px solid var(--line); border-radius:14px;
+  box-shadow:var(--shadow-lg); padding:22px; width:min(400px,100%);
+  display:flex; flex-direction:column; gap:12px;
+}
+.confirm-box h3{font-size:16.5px}
+.confirm-body{font-size:13.5px; color:var(--ink-2); line-height:1.55}
+.confirm-body dl{
+  display:grid; grid-template-columns:auto 1fr; gap:5px 14px;
+  margin:10px 0 0; padding:11px 13px; border-radius:var(--r);
+  background:var(--surface-2); font-size:12.5px;
+}
+.confirm-body dt{color:var(--muted)}
+.confirm-body dd{margin:0; text-align:right; font-weight:600;
+  font-family:var(--mono); font-variant-numeric:tabular-nums}
+.confirm-actions{display:flex; gap:8px; margin-top:4px}
+.confirm-actions .btn{flex:1; justify-content:center}
+.btn-danger-solid{background:var(--bad); color:#fff; border-color:var(--bad)}
+.btn-danger-solid:hover{filter:brightness(1.08)}
 
 /* ============ TOAST ============ */
 .toast{
@@ -584,13 +633,27 @@ label.check input{width:16px; height:16px; accent-color:var(--accent); flex:0 0 
     padding:calc(9px + env(safe-area-inset-top, 0px)) 14px 9px;
     border-bottom:1px solid var(--line); background:var(--surface);
   }
-  .viewbar .role{margin-left:auto; flex:0 0 auto}
-  .viewbar .role button{padding:5px 13px; font-size:11.5px}
+  .viewbar .whoami-badge{margin-left:auto; flex:0 0 auto}
+
+  /* Staff get a menu button at the top and no bottom bar: they land on the job
+     form and only occasionally need the other three pages. */
+  body[data-role-mode="staff"] .menubtn{display:flex}
+  body[data-role-mode="staff"] .rail{display:none}
+  body[data-role-mode="staff"] .content{padding-bottom:34px}
+  .moresheet.from-top:not([hidden]){
+    top:0; bottom:auto; border-top:none; border-bottom:1px solid var(--line);
+    padding-top:calc(12px + env(safe-area-inset-top, 0px));
+    box-shadow:0 18px 40px -18px rgba(0,0,0,.35);
+  }
 
   .main{padding-bottom:0}
-  .demobar{padding:8px 14px; font-size:11.5px; align-items:flex-start; line-height:1.45}
+  /* Text on one row, the demo controls on their own — otherwise the buttons
+     squeeze the sentence into a four-word column. */
+  .demobar{padding:8px 14px 9px; font-size:11.5px; line-height:1.45; flex-wrap:wrap}
   .demobar > svg{margin-top:2px; flex:none}
-  .demobar button{margin-left:0; flex:none}
+  .demobar > span{flex:1 1 calc(100% - 22px); min-width:0}
+  .demobar button{margin-left:0; flex:0 0 auto; margin-top:6px}
+  .demobar button + button{margin-left:14px}
 
   .topbar{
     position:static;            /* two stacked sticky bars would eat the screen */
@@ -714,23 +777,26 @@ label.check input{width:16px; height:16px; accent-color:var(--accent); flex:0 0 
     <nav class="nav" id="nav"></nav>
 
     <div class="rail-foot">
-      <div class="role" role="group" aria-label="Switch view">
-        <button data-role="shop" aria-pressed="true">Shop</button>
-        <button data-role="owner" aria-pressed="false">Owner</button>
+      <div class="whoami">
+        <span class="whoami-badge js-rolebadge">Staff</span>
+        <span class="whoami-note js-rolenote">Jobs, customers and outsourcing</span>
       </div>
-      <p class="role-note js-rolenote">Shop staff — full edit access.</p>
+      <button class="btn btn-sm btn-ghost js-leaveadmin" hidden>Leave admin</button>
     </div>
   </aside>
 
   <main class="main">
     <div class="viewbar">
+      <button class="menubtn" data-more aria-label="Open menu">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+          <path d="M3 5.5h14M3 10h14M3 14.5h14"/>
+        </svg>
+      </button>
       <div class="viewbar-brand">
         <span class="brand-logo brand-logo-sm" role="img" aria-label="Warnitha Printshop"></span>
       </div>
-      <div class="role" role="group" aria-label="Switch view">
-        <button data-role="shop" aria-pressed="true">Shop</button>
-        <button data-role="owner" aria-pressed="false">Owner</button>
-      </div>
+      <span class="whoami-badge js-rolebadge">Staff</span>
     </div>
 
     <div class="demobar">
@@ -738,7 +804,9 @@ label.check input{width:16px; height:16px; accent-color:var(--accent); flex:0 0 
         <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/>
         <path d="M8 4.6v4M8 11.2v.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
       </svg>
-      <span><b>Demo preview</b> — sample data only. Everything you add saves in this browser. Nothing is sent anywhere.</span>
+      <span><b>Demo preview</b> — sample data, saved in this browser only.
+        You are viewing as <b class="js-rolename">Staff</b>.</span>
+      <button id="switchRole">Switch to admin view</button>
       <button id="resetDemo">Reset demo data</button>
     </div>
 
@@ -761,6 +829,7 @@ label.check input{width:16px; height:16px; accent-color:var(--accent); flex:0 0 
 <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-hidden="true"></aside>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="charttip" id="charttip"></div>
+<div class="confirm" id="confirm"></div>
 
 <script>
 (function(){
@@ -855,7 +924,7 @@ function seed(){ return {
      customerId:"c4", phone:"", startDate:"2026-06-18", dueDate:"2026-07-28", assigned:["s2","s1"],
      status:"delivered", total:295000, advance:150000, advanceDate:"2026-06-18",
      handoverDate:"2026-07-30", finalAmount:0, finalDate:"",
-     outsourced:true, outsourceId:"p3",
+     outsourced:true, outsourceId:"p3", outsourceCost:96000, outsourcePaid:96000, outsourcePaidDate:"2026-07-28",
      notes:"Perfect bound, 120 pages, 170gsm art paper. Delivered to Colombo 03 office."},
 
     {id:"j2", type:"Boxes & packaging", code:"JOB-2026-0141", name:"Export carton boxes — 5,000 units",
@@ -868,7 +937,7 @@ function seed(){ return {
      customerId:"c2", phone:"077 452 3311", startDate:"2026-07-22", dueDate:"2026-08-08", assigned:["s2","s3"],
      status:"finishing", total:68500, advance:30000, advanceDate:"2026-07-22",
      handoverDate:"", finalAmount:0, finalDate:"",
-     outsourced:true, outsourceId:"p1",
+     outsourced:true, outsourceId:"p1", outsourceCost:24000, outsourcePaid:10000, outsourcePaidDate:"2026-07-30",
      notes:"Gold foil + emboss. Envelope printing included. Bride approved proof v3."},
 
     {id:"j4", type:"Banners & signage", code:"JOB-2026-0143", name:"Sports meet banners ×6 (8ft × 3ft)",
@@ -908,6 +977,7 @@ function seed(){ return {
      // Outsourced to someone who isn't in the saved list.
      outsourced:true, outsourceId:"", outsourceName:"Chaminda Rathnayake",
      outsourceCompany:"", outsourcePhone:"071 225 6690",
+     outsourceCost:41000, outsourcePaid:0, outsourcePaidDate:"",
      notes:"Cast vinyl, 5-year outdoor. Measurements taken on site."},
 
     {id:"j10", type:"Stickers & labels", code:"JOB-2026-0125", name:"Tea labels 500g — 12,000 stickers",
@@ -948,7 +1018,7 @@ function seed(){ return {
      customerId:"c4", phone:"", startDate:"2026-08-05", dueDate:"2026-08-22", assigned:["s2"],
      status:"", total:138000, advance:50000, advanceDate:"2026-08-05",
      handoverDate:"", finalAmount:0, finalDate:"",
-     outsourced:true, outsourceId:"p3",
+     outsourced:true, outsourceId:"p3", outsourceCost:0, outsourcePaid:0, outsourcePaidDate:"",
      notes:"Artwork arriving this week. Binding goes to Ceylon Binders."}
   ],
   nextJobNo:147
@@ -957,8 +1027,29 @@ function seed(){ return {
 /* ===================== STATE ===================== */
 
 const KEY = "presstrack.demo.v1";
-let db, route="dashboard", role="shop";
+const ROLE_KEY = "presstrack.role";
+let db, route="new", role="staff";
 let filter={q:"", tab:"active"};
+
+/* No passwords: the role comes from the link you open, and the device
+   remembers it. Opening .../#admin turns this device into an admin device
+   until "Leave admin" is used. Everyone else lands as staff.
+   This is convenience, not security — see the README. */
+function loadRole(){
+  let r = null;
+  try{ r = localStorage.getItem(ROLE_KEY); }catch(e){}
+  const h = (location.hash || "").replace(/^#\/?/, "").toLowerCase();
+  if(h === "admin"){ r = "admin"; saveRole(r); }
+  else if(h === "staff"){ r = "staff"; saveRole(r); }
+  role = r === "admin" ? "admin" : "staff";
+}
+function saveRole(r){
+  try{ localStorage.setItem(ROLE_KEY, r); }catch(e){}
+}
+function setRole(r){
+  role = r; saveRole(r);
+  document.body.setAttribute("data-role-mode", r);
+}
 
 function load(){
   try{
@@ -975,6 +1066,9 @@ function migrate(d){
     if(RETIRED_STAGES[j.status]) j.status = RETIRED_STAGES[j.status];
     if(j.outsourced === undefined) j.outsourced = false;
     if(!j.type) j.type = "Other";
+    if(j.outsourceCost === undefined) j.outsourceCost = 0;
+    if(j.outsourcePaid === undefined) j.outsourcePaid = 0;
+    if(j.outsourcePaidDate === undefined) j.outsourcePaidDate = "";
   });
   return d;
 }
@@ -1106,6 +1200,33 @@ function peopleHTML(ids, withNames){
   return h + '</div>';
 }
 
+/* Promise-based confirm, so the flow reads top-to-bottom at the call site.
+   Browser confirm() is unstyled and easy to dismiss by accident on a phone. */
+let confirmResolve = null;
+function askConfirm(opts){
+  const el = $("#confirm");
+  el.innerHTML =
+    '<div class="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">'
+      + '<h3 id="confirmTitle">'+esc(opts.title)+'</h3>'
+      + (opts.body ? '<div class="confirm-body">'+opts.body+'</div>' : '')
+      + '<div class="confirm-actions">'
+        + '<button class="btn" data-confirm="0">'+esc(opts.cancel || "Go back")+'</button>'
+        + '<button class="btn '+(opts.danger?"btn-danger-solid":"btn-primary")+'" data-confirm="1">'
+          + esc(opts.ok || "Yes, save")+'</button>'
+      + '</div>'
+    + '</div>';
+  el.classList.add("open");
+  const first = el.querySelector('[data-confirm="1"]');
+  if(first) setTimeout(function(){ first.focus(); }, 40);
+  return new Promise(function(res){ confirmResolve = res; });
+}
+function closeConfirm(v){
+  if(!confirmResolve) return;
+  $("#confirm").classList.remove("open");
+  const r = confirmResolve; confirmResolve = null;
+  r(v);
+}
+
 function toast(msg){
   const t = $("#toast");
   t.textContent = msg;
@@ -1114,7 +1235,18 @@ function toast(msg){
   toast._t = setTimeout(function(){ t.classList.remove("show"); }, 2200);
 }
 
-const canEdit = () => role === "shop";
+const isAdmin = () => role === "admin";
+
+/* Staff may create and edit jobs, customers and outsourcers. Anything that
+   moves money, and anything destructive, is the admin's. */
+const canEdit    = () => true;
+const canDelete  = () => isAdmin();
+
+/* Payments: staff record what was agreed and collected when the job is booked
+   in, and nothing after that. Final payments and money paid out to an
+   outsourcer are the admin's alone. */
+const canSetPayments   = editing => isAdmin() || !editing;
+const canSeeFinalMoney = () => isAdmin();
 
 /* ===================== ICONS ===================== */
 const ICONS = {
@@ -1126,6 +1258,7 @@ const ICONS = {
   outsource:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2.8H3.2a.9.9 0 0 0-.9.9v9.1a.9.9 0 0 0 .9.9h9.1a.9.9 0 0 0 .9-.9V9"/><path d="M9.8 2.5h3.7v3.7M13.5 2.5 7.8 8.2"/></svg>',
   more:'<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="3.2" cy="8" r="1.35"/><circle cx="8" cy="8" r="1.35"/><circle cx="12.8" cy="8" r="1.35"/></svg>',
   chart:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.3 13.7h11.4"/><path d="M4.6 13.5V8.2M8 13.5V3.4M11.4 13.5V6.1"/></svg>',
+  lock:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3.4" y="7" width="9.2" height="6.4" rx="1.3"/><path d="M5.6 7V5.2a2.4 2.4 0 0 1 4.8 0V7"/></svg>',
   plus:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg>',
   search:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.3"/><path d="m10.3 10.3 3 3" stroke-linecap="round"/></svg>',
   close:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>'
@@ -1136,18 +1269,32 @@ const ICONS = {
 /* `secondary` pages are reference/setup rather than daily use — on a phone they
    move into the More sheet so the tab bar keeps five thumb-sized targets. */
 const PAGES = [
-  {id:"dashboard",   label:"Dashboard",   icon:"dashboard"},
+  {id:"new",         label:"New Job",     icon:"plus"},
   {id:"jobs",        label:"Jobs",        icon:"jobs"},
-  {id:"new",         label:"New Job",     icon:"plus",      shopOnly:true},
-  {id:"payments",    label:"Payments",    icon:"money"},
-  {id:"analytics",   label:"Analytics",   icon:"chart"},
   {id:"customers",   label:"Customers",   icon:"customers", secondary:true},
   {id:"outsourcing", label:"Outsourcing", icon:"outsource", secondary:true},
-  {id:"team",        label:"Team",        icon:"team",      secondary:true}
+  {id:"dashboard",   label:"Dashboard",   icon:"dashboard", adminOnly:true},
+  {id:"payments",    label:"Payments",    icon:"money",     adminOnly:true},
+  {id:"analytics",   label:"Analytics",   icon:"chart",     adminOnly:true},
+  {id:"team",        label:"Team",        icon:"team",      adminOnly:true, secondary:true}
 ];
 const ROUTES = PAGES.map(function(p){ return p.id; });
+
+/* Admin opens on the Dashboard; staff open straight into the job form, which is
+   the whole point of the phone shortcut. */
+const homeRoute = () => isAdmin() ? "dashboard" : "new";
+
 function visiblePages(){
-  return PAGES.filter(function(p){ return !p.shopOnly || canEdit(); });
+  const list = PAGES.filter(function(p){ return !p.adminOnly || isAdmin(); });
+  // Admin gets the overview first; staff get the form first.
+  return isAdmin()
+    ? list.slice().sort(function(a,b){ return PAGE_ORDER_ADMIN.indexOf(a.id) - PAGE_ORDER_ADMIN.indexOf(b.id); })
+    : list;
+}
+const PAGE_ORDER_ADMIN = ["dashboard","jobs","new","payments","analytics","customers","outsourcing","team"];
+function pageAllowed(id){
+  const p = PAGES.find(function(x){ return x.id===id; });
+  return !!p && (!p.adminOnly || isAdmin());
 }
 
 function renderNav(){
@@ -1174,10 +1321,29 @@ function renderNav(){
     + '<button class="nav-item nav-more" data-more'+(onSecondary?' aria-current="page"':'')+'>'
       + ICONS.more + '<span>More</span></button>';
 
+  // Staff have few enough destinations that the sheet is their whole menu;
+  // admin only needs the overflow.
+  const sheetPages = isAdmin() ? pages.filter(function(p){ return p.secondary; }) : pages;
   $("#moreSheet").innerHTML =
-    '<p class="lbl" style="padding:2px 4px 8px">Also in PressTrack</p>'
-    + pages.filter(function(p){ return p.secondary; })
-           .map(function(p){ return item(p, true); }).join("");
+    '<p class="lbl" style="padding:2px 4px 8px">'+(isAdmin() ? "Also in the system" : "Go to")+'</p>'
+    + sheetPages.map(function(p){ return item(p, true); }).join("");
+  $("#moreSheet").classList.toggle("from-top", !isAdmin());
+
+  document.querySelectorAll(".js-rolebadge").forEach(function(el){
+    el.textContent = isAdmin() ? "Admin" : "Staff";
+    el.classList.toggle("is-admin", isAdmin());
+  });
+  document.querySelectorAll(".js-rolename").forEach(function(el){
+    el.textContent = isAdmin() ? "Admin" : "Staff";
+  });
+  document.querySelectorAll(".js-rolenote").forEach(function(el){
+    el.textContent = isAdmin()
+      ? "Full access, including money"
+      : "Jobs, customers and outsourcing";
+  });
+  document.querySelectorAll(".js-leaveadmin").forEach(function(el){ el.hidden = !isAdmin(); });
+  const sw = $("#switchRole");
+  if(sw) sw.textContent = isAdmin() ? "Switch to staff view" : "Switch to admin view";
 }
 
 function toggleMore(open){
@@ -1374,6 +1540,12 @@ function renderJobs(){
 
 /* ===================== PAYMENTS ===================== */
 
+/* On an outsourced job the shop keeps the difference between what the customer
+   pays and what the outsourcer charges. */
+const commission  = j => j.outsourced ? (Number(j.total)||0) - (Number(j.outsourceCost)||0) : 0;
+const owedToParty = j => j.outsourced && j.status!=="cancelled"
+  ? Math.max(0, (Number(j.outsourceCost)||0) - (Number(j.outsourcePaid)||0)) : 0;
+
 function renderPayments(){
   const owing = db.jobs.filter(function(j){ return balance(j)>0 && j.status!=="cancelled"; })
     .sort(function(a,b){ return balance(b)-balance(a); });
@@ -1382,19 +1554,25 @@ function renderPayments(){
   const afterHandover = owing.filter(function(j){ return j.status==="delivered" || j.status==="completed"; });
   const afterOwed = afterHandover.reduce(function(s,j){ return s+balance(j); },0);
 
+  const outJobs    = db.jobs.filter(function(j){ return j.outsourced; });
+  const owedOut    = outJobs.reduce(function(s,j){ return s+owedToParty(j); }, 0);
+  const commEarned = outJobs.reduce(function(s,j){ return s+(j.outsourceCost?commission(j):0); }, 0);
+
   $("#view").innerHTML =
     '<section class="kpis">'
     + kpi("Total outstanding", money(totalOwed), "", "var(--bad)", 'Across <b>'+owing.length+'</b> jobs')
     + kpi("Owed after handover", money(afterOwed), "", "var(--warn)",
-        afterHandover.length ? '<b>'+afterHandover.length+'</b> jobs already delivered' : 'None — good')
-    + kpi("Started with no advance", noAdvance.length, "", "var(--warn)",
-        noAdvance.length ? 'Work in progress with nothing collected' : 'Every active job has an advance')
+        afterHandover.length ? '<b>'+plural(afterHandover.length,"job")+'</b> already delivered' : 'None — good')
+    + kpi("Owed to outsourcers", money(owedOut), "", "var(--outsrc)",
+        owedOut ? 'Money you still have to pay out' : 'Nothing owed out')
+    + kpi("Commission earned", money(commEarned), "", "var(--ok)",
+        'Your margin on '+plural(outJobs.filter(function(j){ return j.outsourceCost; }).length,"outsourced job"))
     + '</section>'
 
     + '<section class="card">'
       + '<div class="card-head"><h3>Who owes what</h3><span class="lbl">highest first</span></div>'
       + (owing.length ? '<div class="tablewrap"><table><thead><tr>'
-        + '<th>Job</th><th>Customer</th><th>Contact</th><th>Status</th>'
+        + '<th>Job</th><th>Customer</th><th>Contact</th><th>Stage</th>'
         + '<th class="t-right">Total</th><th class="t-right">Advance</th><th class="t-right">Final</th><th class="t-right">Balance</th>'
         + '</tr></thead><tbody>'
         + owing.map(function(j){
@@ -1413,7 +1591,36 @@ function renderPayments(){
           }).join("")
         + '</tbody></table></div>'
         : '<div class="empty"><strong>Everything is settled</strong>No outstanding balances.</div>')
-    + '</section>';
+    + '</section>'
+
+    + (outJobs.length ? '<section class="card">'
+      + '<div class="card-head"><h3>Outsourced jobs</h3>'
+        + '<span class="lbl">commission and money owed out</span></div>'
+      + '<div class="tablewrap"><table><thead><tr>'
+        + '<th>Job</th><th>Sent to</th>'
+        + '<th class="t-right">Customer pays</th><th class="t-right">Their cost</th>'
+        + '<th class="t-right">Paid to them</th><th class="t-right">Owed to them</th>'
+        + '<th class="t-right">Your commission</th>'
+      + '</tr></thead><tbody>'
+      + outJobs.map(function(j){
+          const o = jobPartner(j) || {};
+          const owe = owedToParty(j), com = commission(j);
+          return '<tr data-job="'+j.id+'">'
+            + '<td class="td-primary"><span class="jobname">'+esc(j.name)+'</span><span class="jobcode">'+esc(j.code)+'</span></td>'
+            + '<td data-label="Sent to"><span class="cust">'+esc(o.company || o.name || "—")+'</span></td>'
+            + '<td data-label="Customer pays" class="t-right"><span class="money">'+money(j.total)+'</span></td>'
+            + '<td data-label="Their cost" class="t-right"><span class="money '+(j.outsourceCost?"":"money-zero")+'">'
+                + (j.outsourceCost?money(j.outsourceCost):"not set")+'</span></td>'
+            + '<td data-label="Paid to them" class="t-right"><span class="money '+(j.outsourcePaid?"money-ok":"money-zero")+'">'
+                + (j.outsourcePaid?money(j.outsourcePaid):"—")+'</span></td>'
+            + '<td data-label="Owed to them" class="t-right"><span class="money '+(owe>0?"money-due":"money-zero")+'">'
+                + (owe>0?money(owe):"—")+'</span></td>'
+            + '<td data-label="Your commission" class="t-right"><span class="money '+(j.outsourceCost?(com>=0?"money-ok":"money-due"):"money-zero")+'">'
+                + (j.outsourceCost?money(com):"—")+'</span></td>'
+            + '</tr>';
+        }).join("")
+      + '</tbody></table></div>'
+    + '</section>' : '');
 }
 
 /* ===================== CUSTOMERS ===================== */
@@ -1852,7 +2059,7 @@ function partnerForm(id){
     + '</form>'
     + '<div class="drawer-foot">'
       + '<button class="btn btn-sm" data-close>Cancel</button>'
-      + (editing && !jobs.length ? '<button class="btn btn-sm btn-danger" data-delete-partner="'+id+'">Delete</button>' : '')
+      + (canDelete() && editing && !jobs.length ? '<button class="btn btn-sm btn-danger" data-delete-partner="'+id+'">Delete</button>' : '')
       + '<button class="btn btn-sm btn-primary" data-save-partner="'+(editing?id:"")+'">'+(editing?"Save changes":"Add place")+'</button>'
     + '</div>'
   );
@@ -1947,7 +2154,7 @@ function jobDetail(id){
     let cls = "stage-btn";
     if(s.id===j.status) cls += " active";
     else if(cur>-1 && i<cur) cls += " done";
-    return '<button class="'+cls+'" data-stage="'+s.id+'"'+(canEdit()?'':' disabled')+'>'+esc(s.label)+'</button>';
+    return '<button class="'+cls+'" data-stage="'+s.id+'">'+esc(s.label)+'</button>';
   }).join("");
 
   openDrawer(
@@ -1976,11 +2183,10 @@ function jobDetail(id){
         + '<div class="stages">'+stageBtns+'</div>'
         + '<div class="stages" style="margin-top:2px">'
           + EXCEPTIONS.map(function(s){
-              return '<button class="stage-btn'+(j.status===s.id?" active":"")+'" data-stage="'+s.id+'"'+(canEdit()?'':' disabled')+'>'+esc(s.label)+'</button>';
+              return '<button class="stage-btn'+(j.status===s.id?" active":"")+'" data-stage="'+s.id+'">'+esc(s.label)+'</button>';
             }).join("")
-          + '<button class="stage-btn'+(!j.status?" active":"")+'" data-stage=""'+(canEdit()?'':' disabled')+'>Not set</button>'
+          + '<button class="stage-btn'+(!j.status?" active":"")+'" data-stage="">Not set</button>'
         + '</div>'
-        + (canEdit() ? '' : '<p class="hint">Owner view is read-only — stage changes are made by the shop.</p>')
       + '</div>'
 
       + '<div class="fieldset">'
@@ -2003,6 +2209,21 @@ function jobDetail(id){
             + '<dt>Contact</dt><dd class="num'+(out.phone?'':' muted')+'">'+esc(out.phone || "Not recorded")+'</dd>'
             + (out.note ? '<dt>Note</dt><dd class="muted">'+esc(out.note)+'</dd>' : '')
           + '</dl>'
+          + (isAdmin() ? '<div class="ledger" style="margin-top:11px">'
+              + '<div class="ledger-row">Customer pays<span class="money">'+money(j.total)+'</span></div>'
+              + '<div class="ledger-row">Their cost'
+                  + '<span class="money '+(j.outsourceCost?"":"money-zero")+'">'
+                  + (j.outsourceCost?money(j.outsourceCost):"not set")+'</span></div>'
+              + '<div class="ledger-row">Paid to them '+(j.outsourcePaidDate?'<small>'+fmtDate(j.outsourcePaidDate)+'</small>':'')
+                  + '<span class="money '+(j.outsourcePaid?"money-ok":"money-zero")+'">'
+                  + (j.outsourcePaid?money(j.outsourcePaid):"—")+'</span></div>'
+              + (owedToParty(j) > 0
+                  ? '<div class="ledger-row">Still owed to them<span class="money money-due">'+money(owedToParty(j))+'</span></div>'
+                  : '')
+              + '<div class="ledger-row total">Your commission'
+                  + '<span class="money '+(j.outsourceCost?(commission(j)>=0?"money-ok":"money-due"):"money-zero")+'">'
+                  + (j.outsourceCost?money(commission(j)):"set their cost first")+'</span></div>'
+            + '</div>' : '')
         + '</div>' : '')
 
       + '<div class="fieldset">'
@@ -2035,10 +2256,8 @@ function jobDetail(id){
 
     + '<div class="drawer-foot">'
       + '<button class="btn btn-sm" data-close>Close</button>'
-      + (canEdit()
-          ? '<button class="btn btn-sm btn-danger" data-delete-job="'+j.id+'">Delete</button>'
-            + '<button class="btn btn-sm btn-primary" data-edit-job="'+j.id+'">Edit job</button>'
-          : '<span class="hint" style="margin-left:auto">Read-only — owner view</span>')
+      + (canDelete() ? '<button class="btn btn-sm btn-danger" data-delete-job="'+j.id+'">Delete</button>' : '')
+      + '<button class="btn btn-sm btn-primary" data-edit-job="'+j.id+'">Edit job</button>'
     + '</div>'
   );
 }
@@ -2054,13 +2273,16 @@ function blankJob(){
           total:"", advance:"", advanceDate:"", handoverDate:"",
           finalAmount:"", finalDate:"", notes:"",
           outsourced:false, outsourceId:"", outsourceName:"",
-          outsourceCompany:"", outsourcePhone:""};
+          outsourceCompany:"", outsourcePhone:"",
+          outsourceCost:"", outsourcePaid:"", outsourcePaidDate:""};
 }
 function nextCode(){ return "JOB-2026-" + String(db.nextJobNo).padStart(4,"0"); }
 
 /* The form body is shared by the drawer and the standalone New Job page, so it
    lives in one place and both callers wrap it in their own chrome. */
-function jobFormBody(j){
+function jobFormBody(j, editing){
+  const payOK      = canSetPayments(editing);   // staff: only while creating
+  const adminMoney = canSeeFinalMoney();        // final payments, money paid out
   const custOpts = db.customers.slice()
     .sort(function(a,b){ return a.name.localeCompare(b.name); })
     .map(function(c){
@@ -2164,6 +2386,27 @@ function jobFormBody(j){
             + '<span>Also save them to my outsourcing list</span></label>'
         + '</div>'
         + '<p class="hint" id="outsrcHint"></p>'
+
+        // On an outsourced job the shop keeps only the difference between what
+        // the customer pays and what the outsourcer charges.
+        + '<div class="outsrc-money">'
+          + '<span class="lbl">The outsourcer\'s side</span>'
+          + (payOK
+              ? '<label class="f"><span>Agreed cost to them (LKR)</span>'
+                  + '<input class="input num" name="outsourceCost" inputmode="numeric" value="'+esc(j.outsourceCost)+'" placeholder="0"></label>'
+              : '<div class="ledger"><div class="ledger-row">Agreed cost to them'
+                  + '<span class="money">'+money(j.outsourceCost)+'</span></div></div>')
+          + (adminMoney
+              ? '<div class="grid2">'
+                  + '<label class="f"><span>Paid to them</span>'
+                    + '<input class="input num" name="outsourcePaid" inputmode="numeric" value="'+esc(j.outsourcePaid)+'" placeholder="0"></label>'
+                  + '<label class="f"><span>Date paid</span>'
+                    + '<input class="input num" type="date" name="outsourcePaidDate" value="'+esc(j.outsourcePaidDate)+'"></label>'
+                + '</div>'
+              : '<p class="hint">Payments out to the outsourcer are recorded by the admin.</p>')
+          + '<div class="calc"><span class="lbl">Your commission</span>'
+            + '<span class="calc-val" id="calcComm">Rs 0</span></div>'
+        + '</div>'
       + '</div>'
     + '</div>'
 
@@ -2181,17 +2424,35 @@ function jobFormBody(j){
 
     + '<div class="fieldset">'
       + '<span class="lbl">Money</span>'
-      + '<label class="f"><span>Job total (LKR)</span>'
-        + '<input class="input num" name="total" inputmode="numeric" value="'+esc(j.total)+'" placeholder="0"></label>'
-      + '<div class="grid2">'
-        + '<label class="f"><span>Advance paid</span><input class="input num" name="advance" inputmode="numeric" value="'+esc(j.advance)+'" placeholder="0"></label>'
-        + '<label class="f"><span>Advance date</span><input class="input num" type="date" name="advanceDate" value="'+esc(j.advanceDate)+'"></label>'
-      + '</div>'
-      + '<div class="grid2">'
-        + '<label class="f"><span>Final payment</span><input class="input num" name="finalAmount" inputmode="numeric" value="'+esc(j.finalAmount)+'" placeholder="0"></label>'
-        + '<label class="f"><span>Final payment date</span><input class="input num" type="date" name="finalDate" value="'+esc(j.finalDate)+'"></label>'
-      + '</div>'
-      + '<div class="calc"><span class="lbl">Pending balance</span><span class="calc-val" id="calcBal">Rs 0</span></div>'
+      + (payOK
+          ? '<label class="f"><span>Job total (LKR)</span>'
+              + '<input class="input num" name="total" inputmode="numeric" value="'+esc(j.total)+'" placeholder="0"></label>'
+            + '<div class="grid2">'
+              + '<label class="f"><span>Advance paid</span><input class="input num" name="advance" inputmode="numeric" value="'+esc(j.advance)+'" placeholder="0"></label>'
+              + '<label class="f"><span>Advance date</span><input class="input num" type="date" name="advanceDate" value="'+esc(j.advanceDate)+'"></label>'
+            + '</div>'
+            + (adminMoney
+                ? '<div class="grid2">'
+                    + '<label class="f"><span>Final payment</span><input class="input num" name="finalAmount" inputmode="numeric" value="'+esc(j.finalAmount)+'" placeholder="0"></label>'
+                    + '<label class="f"><span>Final payment date</span><input class="input num" type="date" name="finalDate" value="'+esc(j.finalDate)+'"></label>'
+                  + '</div>'
+                : '<p class="hint">Final payments are recorded by the admin.</p>')
+            + '<div class="calc"><span class="lbl">Pending balance</span><span class="calc-val" id="calcBal">Rs 0</span></div>'
+          // Staff editing an existing job: payments are shown but not touchable.
+          : '<div class="locked">'
+              + '<div class="locked-head">'+ICONS.lock+'<span>Only the admin can change payments</span></div>'
+              + '<div class="ledger">'
+                + '<div class="ledger-row">Job total<span class="money">'+money(j.total)+'</span></div>'
+                + '<div class="ledger-row">Advance '+(j.advanceDate?'<small>'+fmtDate(j.advanceDate)+'</small>':'')
+                    + '<span class="money '+(j.advance?"money-ok":"money-zero")+'">'+(j.advance?money(j.advance):"—")+'</span></div>'
+                + '<div class="ledger-row">Final payment '+(j.finalDate?'<small>'+fmtDate(j.finalDate)+'</small>':'')
+                    + '<span class="money '+(j.finalAmount?"money-ok":"money-zero")+'">'+(j.finalAmount?money(j.finalAmount):"—")+'</span></div>'
+                + '<div class="ledger-row total">Pending balance'
+                    + '<span class="money '+(balance(j)>0?"money-due":"money-ok")+'">'
+                    + (balance(j)>0?money(balance(j)):"Fully settled")+'</span></div>'
+              + '</div>'
+              + '<p class="hint">Everything else on this job can still be edited. To correct an amount, tell the admin.</p>'
+            + '</div>')
     + '</div>'
 
     + '<div class="fieldset">'
@@ -2218,7 +2479,7 @@ function jobForm(id){
       + '<span class="jobcode">'+esc(j.code)+'</span></div>'
       + '<button class="btn btn-ghost btn-sm" data-close aria-label="Close">'+ICONS.close+'</button>'
     + '</div>'
-    + '<form class="drawer-body" id="jobForm" novalidate>' + jobFormBody(j) + '</form>'
+    + '<form class="drawer-body" id="jobForm" novalidate>' + jobFormBody(j, editing) + '</form>'
     + '<div class="drawer-foot">'
       + '<button class="btn btn-sm" data-close>Cancel</button>'
       + '<button class="btn btn-sm btn-primary" data-save-job="'+(editing?j.id:"")+'">'+(editing?"Save changes":"Add job")+'</button>'
@@ -2228,6 +2489,7 @@ function jobForm(id){
   updateCalc();
   updateCustHint();
   updateOutsrc();
+  updateComm();
 }
 
 /* Standalone New Job page — the whole screen is the form, nothing else. */
@@ -2241,7 +2503,7 @@ function renderNewJobPage(){
         + '<span class="lbl">Job number</span>'
         + '<span class="jobcode" style="margin-left:0">'+esc(j.code)+'</span>'
       + '</div>'
-      + '<form class="formpage-body" id="jobForm" novalidate>' + jobFormBody(j) + '</form>'
+      + '<form class="formpage-body" id="jobForm" novalidate>' + jobFormBody(j, false) + '</form>'
       + '<div class="formpage-foot">'
         + '<button class="btn" data-nav="jobs">Cancel</button>'
         + '<button class="btn btn-primary" data-save-job="" data-stay="1">Add job</button>'
@@ -2251,6 +2513,7 @@ function renderNewJobPage(){
   updateCalc();
   updateCustHint();
   updateOutsrc();
+  updateComm();
 }
 
 /* Shown after saving from the standalone page, instead of navigating away. */
@@ -2289,6 +2552,30 @@ function updateCalc(){
   }
 }
 
+/* Commission is what the shop keeps: what the customer pays minus what the
+   outsourcer charges. Always derived, never typed. */
+function updateComm(){
+  const f = $("#jobForm"); if(!f) return;
+  const el = $("#calcComm"); if(!el) return;
+  const n = function(v){ return Number(String(v).replace(/[^0-9.-]/g,"")) || 0; };
+  const total = f.total ? n(f.total.value) : n(jobById(f) ? jobById(f).total : 0);
+  const cost  = f.outsourceCost ? n(f.outsourceCost.value) : 0;
+  const comm  = total - cost;
+  if(!total || !cost){
+    el.textContent = "Rs 0";
+    el.style.color = "var(--faint)";
+  }else{
+    el.textContent = comm >= 0 ? money(comm) : "Short by " + money(-comm);
+    el.style.color = comm > 0 ? "var(--ok)" : comm === 0 ? "var(--muted)" : "var(--bad)";
+  }
+}
+// The form may be locked, in which case the total lives on the job, not a field.
+function jobById(f){
+  const btn = document.querySelector("[data-save-job]");
+  const id = btn ? btn.getAttribute("data-save-job") : "";
+  return id ? db.jobs.find(function(x){ return x.id===id; }) : null;
+}
+
 function updateCustHint(){
   const f = $("#jobForm"); if(!f || !f.customerId) return;
   const h = $("#custHint"); if(!h) return;
@@ -2299,7 +2586,7 @@ function updateCustHint(){
     + (c.note ? ' · '+esc(c.note) : '');
 }
 
-function saveJob(id, stayOnPage){
+async function saveJob(id, stayOnPage){
   const f = $("#jobForm");
   const err = $("#formErr");
   const n = function(v){ return Number(String(v).replace(/[^0-9.-]/g,"")) || 0; };
@@ -2343,12 +2630,24 @@ function saveJob(id, stayOnPage){
   }
   err.hidden = true;
 
+  // When a control isn't on the form — locked for staff, or admin-only — the
+  // stored value must survive the save rather than being read back as blank.
+  const prev = id ? db.jobs.find(function(x){ return x.id===id; }) : null;
+
   const data = {
     name:f.name.value.trim(), type:f.type.value,
     startDate:f.startDate.value, dueDate:f.dueDate.value, assigned:formPicks.slice(),
-    status:f.status.value, total:n(f.total.value), advance:n(f.advance.value),
-    advanceDate:f.advanceDate.value, handoverDate:f.handoverDate.value,
-    finalAmount:n(f.finalAmount.value), finalDate:f.finalDate.value, notes:f.notes.value.trim()
+    status:f.status.value, handoverDate:f.handoverDate.value, notes:f.notes.value.trim(),
+
+    total:       f.total       ? n(f.total.value)       : (prev ? prev.total : 0),
+    advance:     f.advance     ? n(f.advance.value)     : (prev ? prev.advance : 0),
+    advanceDate: f.advanceDate ? f.advanceDate.value    : (prev ? prev.advanceDate : ""),
+    finalAmount: f.finalAmount ? n(f.finalAmount.value) : (prev ? prev.finalAmount : 0),
+    finalDate:   f.finalDate   ? f.finalDate.value      : (prev ? prev.finalDate : ""),
+
+    outsourceCost:     f.outsourceCost     ? n(f.outsourceCost.value)  : (prev ? prev.outsourceCost : 0),
+    outsourcePaid:     f.outsourcePaid     ? n(f.outsourcePaid.value)  : (prev ? prev.outsourcePaid : 0),
+    outsourcePaidDate: f.outsourcePaidDate ? f.outsourcePaidDate.value : (prev ? prev.outsourcePaidDate : "")
   };
 
   if(custMode === "walkin"){
@@ -2374,6 +2673,7 @@ function saveJob(id, stayOnPage){
   if(!data.outsourced){
     data.outsourceId = ""; data.outsourceName = "";
     data.outsourceCompany = ""; data.outsourcePhone = "";
+    data.outsourceCost = 0; data.outsourcePaid = 0; data.outsourcePaidDate = "";
   }else if(f.outsourceId.value){
     data.outsourceId = f.outsourceId.value;
     data.outsourceName = ""; data.outsourceCompany = ""; data.outsourcePhone = "";
@@ -2391,6 +2691,26 @@ function saveJob(id, stayOnPage){
       toast((p.company || p.name) + " saved to your outsourcing list");
     }
   }
+
+  const cust = data.customerId ? (custById(data.customerId)||{}).name
+                               : (data.customerName || "Walk-in customer");
+  const ok = await askConfirm({
+    title: id ? "Save these changes?" : "Create this job?",
+    ok:    id ? "Yes, save changes" : "Yes, create job",
+    body:  '<p>'+esc(data.name)+'</p>'
+      + '<dl>'
+        + '<dt>Customer</dt><dd>'+esc(cust)+'</dd>'
+        + '<dt>Deadline</dt><dd>'+fmtDate(data.dueDate)+'</dd>'
+        + (canSetPayments(!!id)
+            ? '<dt>Job total</dt><dd>'+money(data.total)+'</dd>'
+              + '<dt>Advance</dt><dd>'+(data.advance?money(data.advance):"—")+'</dd>'
+            : '')
+        + (data.outsourced ? '<dt>Outsourced</dt><dd>Yes</dd>' : '')
+      + '</dl>'
+      + (canSetPayments(!!id) && !isAdmin()
+          ? '<p style="margin-top:10px">Once saved, only the admin can change these amounts.</p>' : '')
+  });
+  if(!ok) return;
 
   let job;
   if(id){
@@ -2445,7 +2765,7 @@ function customerForm(id){
     + '</form>'
     + '<div class="drawer-foot">'
       + '<button class="btn btn-sm" data-close>Cancel</button>'
-      + (editing && !jobs.length ? '<button class="btn btn-sm btn-danger" data-delete-customer="'+id+'">Delete</button>' : '')
+      + (canDelete() && editing && !jobs.length ? '<button class="btn btn-sm btn-danger" data-delete-customer="'+id+'">Delete</button>' : '')
       + '<button class="btn btn-sm btn-primary" data-save-customer="'+(editing?id:"")+'">'+(editing?"Save changes":"Add customer")+'</button>'
     + '</div>'
   );
@@ -2501,7 +2821,7 @@ function staffForm(id){
     + '</form>'
     + '<div class="drawer-foot">'
       + '<button class="btn btn-sm" data-close>Cancel</button>'
-      + (editing && !jobs.length ? '<button class="btn btn-sm btn-danger" data-delete-staff="'+id+'">Delete</button>' : '')
+      + (canDelete() && editing && !jobs.length ? '<button class="btn btn-sm btn-danger" data-delete-staff="'+id+'">Delete</button>' : '')
       + '<button class="btn btn-sm btn-primary" data-save-staff="'+(editing?id:"")+'">'+(editing?"Save changes":"Add person")+'</button>'
     + '</div>'
   );
@@ -2543,7 +2863,7 @@ function renderHeader(){
     actions += '<div class="field"><span>'+ICONS.search+'</span>'
       + '<input class="input searchbox" id="search" placeholder="Search jobs or customers" value="'+esc(filter.q)+'" autocomplete="off"></div>';
   }
-  if(canEdit()){
+  {
     if(route==="jobs" || route==="dashboard")
       actions += '<button class="btn btn-primary" data-new="job">'+ICONS.plus+'New job</button>';
     if(route==="customers")
@@ -2557,8 +2877,8 @@ function renderHeader(){
 }
 
 function go(to, replace){
-  if(ROUTES.indexOf(to) === -1) to = "dashboard";
-  if(to === "new" && !canEdit()) to = "jobs";   // owner view has no entry form
+  if(ROUTES.indexOf(to) === -1) to = homeRoute();
+  if(!pageAllowed(to)) to = homeRoute();        // staff can't reach admin pages by URL
   route = to;
   const hash = "#" + to;
   if(location.hash !== hash){
@@ -2572,7 +2892,8 @@ function go(to, replace){
 
 function routeFromHash(){
   const h = (location.hash || "").replace(/^#\/?/, "").toLowerCase();
-  return ROUTES.indexOf(h) > -1 ? h : "dashboard";
+  if(ROUTES.indexOf(h) === -1 || !pageAllowed(h)) return homeRoute();
+  return h;
 }
 
 function render(){
@@ -2592,6 +2913,10 @@ function render(){
 
 document.addEventListener("click", function(e){
   const t = e.target;
+
+  const conf = t.closest("[data-confirm]");
+  if(conf){ closeConfirm(conf.getAttribute("data-confirm") === "1"); return; }
+  if(t.id === "confirm"){ closeConfirm(false); return; }
 
   if(t.closest("[data-more]")){ toggleMore(); return; }
   if(t.id === "moreScrim"){ toggleMore(false); return; }
@@ -2744,22 +3069,12 @@ document.addEventListener("click", function(e){
 
   if(t.id === "scrim"){ closeDrawer(); return; }
 
-  // The switch is rendered twice — sidebar on desktop, top bar on mobile —
-  // so update every instance, not just the one that was clicked.
-  const roleBtn = t.closest("[data-role]");
-  if(roleBtn){
-    role = roleBtn.getAttribute("data-role");
-    document.querySelectorAll("[data-role]").forEach(function(b){
-      b.setAttribute("aria-pressed", b.getAttribute("data-role")===role);
-    });
-    document.querySelectorAll(".js-rolenote").forEach(function(p){
-      p.textContent = role==="shop"
-        ? "Shop staff — full edit access."
-        : "Owner abroad — sees everything, changes nothing.";
-    });
-    closeDrawer();
-    go(route === "new" && role === "owner" ? "jobs" : route, true);
-    toast(role==="shop" ? "Shop view — you can add and edit" : "Owner view — read only");
+  if(t.id === "switchRole" || t.closest(".js-leaveadmin")){
+    const to = isAdmin() ? "staff" : "admin";
+    setRole(to);
+    closeDrawer(); toggleMore(false);
+    go(pageAllowed(route) ? route : homeRoute(), true);
+    toast(to === "admin" ? "Admin view — full access" : "Staff view — jobs, customers, outsourcing");
     return;
   }
 
@@ -2774,8 +3089,19 @@ document.addEventListener("click", function(e){
 });
 
 window.addEventListener("hashchange", function(){
-  const to = routeFromHash();
-  route = (to === "new" && !canEdit()) ? "jobs" : to;
+  // The role links are hashes too, and following one while the app is already
+  // open changes the hash without reloading — so re-read the role here as well.
+  const h = (location.hash || "").replace(/^#\/?/, "").toLowerCase();
+  if(h === "admin" || h === "staff"){
+    const to = h === "admin" ? "admin" : "staff";
+    const changed = to !== role;
+    setRole(to);
+    toggleMore(false); closeDrawer();
+    go(homeRoute(), true);
+    if(changed) toast(to === "admin" ? "Admin view — full access" : "Staff view — jobs, customers, outsourcing");
+    return;
+  }
+  route = routeFromHash();
   toggleMore(false); closeDrawer(); render(); window.scrollTo(0,0);
 });
 
@@ -2797,6 +3123,7 @@ document.addEventListener("input", function(e){
   }
   if(t.form && t.form.id === "jobForm"){
     if(t.name==="total" || t.name==="advance" || t.name==="finalAmount") updateCalc();
+    if(t.name==="total" || t.name==="outsourceCost") updateComm();
     if(t.name==="customerId") updateCustHint();
   }
 });
@@ -2810,6 +3137,7 @@ document.addEventListener("change", function(e){
     updateOutsrc();
   }
   if(t.name==="outsourceId") updateOutsrc();
+  if(t.name==="outsourced") updateComm();
 });
 
 /* Picking a saved outsourcer hides the type-it-in fields, and vice versa. */
@@ -2845,7 +3173,8 @@ document.addEventListener("mouseout", function(e){
 
 document.addEventListener("keydown", function(e){
   if(e.key !== "Escape") return;
-  if(drawerOpen) closeDrawer();
+  if(confirmResolve) closeConfirm(false);
+  else if(drawerOpen) closeDrawer();
   else if(!$("#moreSheet").hidden) toggleMore(false);
 });
 
@@ -2860,6 +3189,8 @@ window.addEventListener("resize", function(){
 });
 
 /* ===================== BOOT ===================== */
+loadRole();
+document.body.setAttribute("data-role-mode", role);
 load();
 route = routeFromHash();
 go(route, true);
