@@ -39,12 +39,16 @@ pending balance, handover date, current stage, and notes.
 
 | Phase | Colour | Stages |
 | --- | --- | --- |
-| Prepress | Cyan | Design → Proof Approval → Pre-press / Plates |
-| Press | Magenta | Printing → Lamination |
-| Finishing | Yellow | Cutting → Binding / Finishing → Quality Check |
+| Prepress | Cyan | Design → Proof Approval |
+| Press | Magenta | Printing |
+| Finishing | Yellow | Laminating / Cutting / Binding → Quality Check |
 | Delivery | Key | Ready for Handover → Handed Over → Completed |
 
 Plus **On Hold** and **Cancelled** for jobs that leave the normal flow.
+
+The stage is **optional**. A job can be booked in without one and stay at
+"Stage not set" until someone decides where it starts — it still counts as being
+on the floor, and the stage can be set from the job at any time.
 
 **Customers** — two kinds, chosen with a switch on the job form:
 
@@ -59,6 +63,13 @@ Both name and number are required for a walk-in — there is no other record of
 them anywhere, so without a number the shop has no way to make contact.
 
 **Team** — the people jobs can be assigned to. Each job takes one or two.
+
+**Outsourcing** — a job can be marked as sent outside, for the work the shop
+doesn't do itself: foiling, large format, binding, die-cutting. Outsourcing
+places are saved like customers and picked from a dropdown, or typed in as a
+one-off with the option to save them afterwards. Only the name is required;
+company and phone are optional. Outsourced jobs are badged in the job list and
+counted on the Outsourcing page.
 
 **Payments** — everything still owed, sorted by amount, flagging jobs already
 handed over with money outstanding.
@@ -77,6 +88,7 @@ directly:
 | **New Job** | `/#new` |
 | Payments | `/#payments` |
 | Customers | `/#customers` |
+| Outsourcing | `/#outsourcing` |
 | Team | `/#team` |
 
 **`/#new` is a page containing nothing but the job entry form.** Open it and you
@@ -91,7 +103,9 @@ the Jobs page instead.
 
 The layout is built for phones, not just shrunk to fit:
 
-- The sidebar becomes a bottom tab bar, thumb-reachable.
+- The sidebar becomes a bottom tab bar of five thumb-sized targets. Customers,
+  Outsourcing and Team sit behind **More**, since they're setup rather than
+  daily use.
 - Tables become stacked cards with labelled rows — an eight-column table is
   unreadable on a 390px screen.
 - Fields are 16px so iOS doesn't zoom in every time one is tapped.
