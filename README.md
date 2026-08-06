@@ -9,23 +9,27 @@ everything at a glance.
 
 ---
 
-## ⚠️ This is a UI demo, not yet a working system
+## ⚠️ Read this before handing over
 
-**Data is stored in each visitor's own browser (`localStorage`).** Nothing is
-sent to a server and nothing is shared between people.
+**Every device keeps its own separate copy of the data.** Records are stored in
+the browser (`localStorage`); nothing is sent to a server.
 
-That means once this is hosted:
+In practice that means:
 
-- The shop's entries are visible **only on the shop's own browser**.
-- The owner opens the same URL and sees the **original sample data**, not the
-  shop's work.
-- Clearing browser data wipes everything.
+- What the shop enters is visible **only on the shop's own device**.
+- The admin opens the same address and sees **an empty system**, not the shop's
+  work.
+- Clearing browser data, or "clear site data", erases the records.
 - The admin sign-in is checked in the browser, so it keeps staff out of screens
   they don't need but does not stop anyone who reads the page source.
 
-It is exactly right for showing the owner how the system will look and work,
-and for collecting his feedback before the real build. See
-[What the real version needs](#what-the-real-version-needs) below.
+This is complete and usable as a **single-device register** — one phone or one
+counter PC — and as the finished picture of how the system works. It becomes a
+shared system when the backend is added; see
+[What the real version needs](#what-the-real-version-needs).
+
+**Back up regularly** by exporting from the browser or keeping the records
+elsewhere until then.
 
 ---
 
@@ -85,6 +89,26 @@ Two consequences worth acting on:
 
 Real protection needs accounts checked on a server, which arrives with the
 backend (see [What the real version needs](#what-the-real-version-needs)).
+
+---
+
+## Starting fresh
+
+The system ships **empty** — no sample jobs, customers or team. First run, as
+admin:
+
+1. **Team** → add the people who work on jobs.
+2. **Customers** → add the regulars (one-off customers don't need saving —
+   the job form has a Walk-in mode).
+3. **Outsourcing** → add the places work gets sent to.
+
+Jobs can be booked in from minute one; if nobody has been added to the team yet,
+jobs simply save with no one assigned and can be assigned later.
+
+Job numbers run `JOB-<year>-0001` upward and restart each January.
+
+**Team → Erase all data** wipes everything on the device, for clearing out
+practice entries after training.
 
 ---
 
@@ -279,10 +303,10 @@ Without Docker — it is a single file with no dependencies, so just open
 No build step, no `node_modules`, no framework. The image is a few megabytes and
 starts instantly.
 
-Everything is themed through CSS custom properties and follows the viewer's
-light or dark mode. The palette is white and blue to match Warnitha's branding;
-the logo is embedded in the HTML as a data URI so the app stays a single file
-with no external requests.
+Everything is themed through CSS custom properties. The palette is white and
+blue to match Warnitha's branding, and the system stays white even on a phone
+set to dark mode — there is deliberately no dark variant. The logo is embedded
+as a data URI so the app stays a single file with no external requests.
 
 Chart colours are a validated categorical palette — checked for colour-blind
 separation and contrast in both light and dark mode, with every donut segment
@@ -295,6 +319,27 @@ restores the original sample jobs. Staff don't see it.
 
 ---
 
+## Security and performance
+
+**Served headers** (`nginx.conf`): a Content-Security-Policy of
+`default-src 'none'` — the app makes no network requests at all, so everything
+external is blocked outright — plus HSTS, `X-Frame-Options: DENY`,
+`X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` and a
+restrictive `Permissions-Policy`.
+
+**In the page**: every value rendered is HTML-escaped, so a customer name
+containing markup is shown as text and never executed. Field lengths are capped
+so a pasted document can't fill the browser's storage quota. If a save ever
+fails — private mode, full storage — it says so loudly instead of losing the
+work silently.
+
+**Speed**: one file, no framework, no fonts or scripts fetched over the network.
+Loads in well under a tenth of a second. Long lists render 60 rows at a time
+with a "Show more" button, and search is debounced, so a register with hundreds
+of jobs stays responsive on a cheap Android phone.
+
+---
+
 ## What the real version needs
 
 To make this a system the shop and the owner genuinely share:
@@ -304,6 +349,9 @@ To make this a system the shop and the owner genuinely share:
 3. **Login and roles** — real accounts checked on the server, so the admin
    password isn't in the page and payment fields can't be reached by editing it.
 4. **Backups** — a nightly dump, kept off the VPS.
+
+Until then the records live on one device, so treat that device as the system
+of record and keep a copy elsewhere.
 
 The screens and the data model in this demo carry over as-is; what gets added is
 the storage and access layer underneath them.
