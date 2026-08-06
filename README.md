@@ -1,4 +1,4 @@
-# PressTrack — Print Shop Job Tracker
+# Warnitha Printshop — Order Tracking System
 
 A job tracking system for a print shop: jobs move through the real production
 stages, staff are assigned to them, customers are saved for reuse, and every
@@ -35,14 +35,15 @@ and for collecting his feedback before the real build. See
 staff, total cost, advance paid and its date, final payment and its date,
 pending balance, handover date, current stage, and notes.
 
-**Print stages**, grouped into four phases coloured after the process inks:
+**Print stages**, grouped into four phases. Phases are ordered, so they use a
+single blue ramp — the deeper the blue, the further along the work is:
 
-| Phase | Colour | Stages |
-| --- | --- | --- |
-| Prepress | Cyan | Design → Proof Approval |
-| Press | Magenta | Printing |
-| Finishing | Yellow | Laminating / Cutting / Binding → Quality Check |
-| Delivery | Key | Ready for Handover → Handed Over → Completed |
+| Phase | Stages |
+| --- | --- |
+| Prepress | Design → Proof Approval |
+| Press | Printing |
+| Finishing | Laminating / Cutting / Binding → Quality Check |
+| Delivery | Ready for Handover → Handed Over → Completed |
 
 Plus **On Hold** and **Cancelled** for jobs that leave the normal flow.
 
@@ -74,6 +75,18 @@ counted on the Outsourcing page.
 **Payments** — everything still owed, sorted by amount, flagging jobs already
 handed over with money outstanding.
 
+**Analytics** — filterable by **Daily** (last 14 days), **Weekly** (last 12
+weeks) or **Monthly** (last 12 months), showing:
+
+- money received per period, as a bar chart, counted on the date each payment
+  actually landed rather than the date the job started
+- which kinds of work came in most, as a donut — top six types plus "Other"
+- who handled the most jobs
+- how many jobs were booked in per period, and where they stand now
+
+Every job carries a **type of work** (business cards, banners, packaging and so
+on), which is what the type breakdown counts.
+
 Pending balance is always calculated (`total − advance − final`), never typed.
 
 ### Pages
@@ -87,6 +100,7 @@ directly:
 | Jobs | `/#jobs` |
 | **New Job** | `/#new` |
 | Payments | `/#payments` |
+| Analytics | `/#analytics` |
 | Customers | `/#customers` |
 | Outsourcing | `/#outsourcing` |
 | Team | `/#team` |
@@ -180,7 +194,13 @@ No build step, no `node_modules`, no framework. The image is a few megabytes and
 starts instantly.
 
 Everything is themed through CSS custom properties and follows the viewer's
-light or dark mode.
+light or dark mode. The palette is white and blue to match Warnitha's branding;
+the logo is embedded in the HTML as a data URI so the app stays a single file
+with no external requests.
+
+Chart colours are a validated categorical palette — checked for colour-blind
+separation and contrast in both light and dark mode, with every donut segment
+also labelled in the legend so colour is never the only cue.
 
 ### Resetting the sample data
 
