@@ -20,9 +20,8 @@ That means once this is hosted:
 - The owner opens the same URL and sees the **original sample data**, not the
   shop's work.
 - Clearing browser data wipes everything.
-- There are no user accounts. The staff/admin split keeps people out of screens
-  they don't need, but it is not enforced anywhere a determined person can't
-  reach.
+- The admin sign-in is checked in the browser, so it keeps staff out of screens
+  they don't need but does not stop anyone who reads the page source.
 
 It is exactly right for showing the owner how the system will look and work,
 and for collecting his feedback before the real build. See
@@ -30,19 +29,20 @@ and for collecting his feedback before the real build. See
 
 ---
 
-## Two roles, no login
+## Two roles
 
-There are no accounts and no passwords. **The role comes from the link you
-open**, and the device remembers it.
+Staff need nothing: the plain address is already theirs and opens straight into
+the job form. There is no sign-in and no sign of an admin area anywhere in what
+they see.
 
-| Who | Link to give them | Lands on |
+| Who | Address | Lands on |
 | --- | --- | --- |
 | Shop staff | `https://your-subdomain/` | The New Job form |
-| Admin | `https://your-subdomain/#admin` | The Dashboard |
+| Admin | `https://your-subdomain/#admin` | Sign-in, then the Dashboard |
 
-Opening the admin link once turns that phone or laptop into an admin device
-until **Leave admin** is used. Staff never need to do anything — the plain
-address is already theirs.
+**Admin sign-in** is at `/#admin`. Once signed in, that phone or laptop stays
+signed in until **Leave admin** in the sidebar. Credentials are set in
+`index.html` — see below to change them.
 
 ### What each role can do
 
@@ -60,15 +60,31 @@ address is already theirs.
 
 Staff typing an admin address get sent back to the job form.
 
-### ⚠️ This is convenience, not security
+### Changing the admin password
 
-Anyone who learns the admin link can use it. That is fine for a small shop where
-the staff are trusted and the point is to keep people out of screens they don't
-need — but it is **not** protection against someone determined.
+The password is **not** stored in the file. What is stored is a SHA-256 digest
+of `username:password`, so the password itself never appears in the repository.
 
-Real protection needs accounts and server-side checks, which arrive with the
-backend (see [What the real version needs](#what-the-real-version-needs)). Until
-then, don't put the admin link on a shared device or a WhatsApp group.
+To change it, generate a new digest and replace `ADMIN_DIGEST` in `index.html`:
+
+```bash
+printf '%s' 'NewUser:NewPassword' | shasum -a 256
+```
+
+### ⚠️ What this sign-in is and isn't
+
+The check runs **in the browser**. It keeps staff out of screens they don't need
+— which is what it is for — but anyone who opens the page source can see how it
+works and get past it. It is a door with a lock, not a wall.
+
+Two consequences worth acting on:
+
+- **Don't reuse this password anywhere else.** Treat it as public.
+- The repository is public. Even hashed, a short or guessable password can be
+  cracked offline — use a long one, or make the repository private.
+
+Real protection needs accounts checked on a server, which arrives with the
+backend (see [What the real version needs](#what-the-real-version-needs)).
 
 ---
 
@@ -274,8 +290,8 @@ also labelled in the legend so colour is never the only cue.
 
 ### Resetting the sample data
 
-The banner at the top of the page has a **Reset demo data** link that restores
-the original sample jobs. Useful before showing someone the demo.
+Signed in as admin, the banner at the top has a **Reset demo data** link that
+restores the original sample jobs. Staff don't see it.
 
 ---
 
@@ -285,9 +301,8 @@ To make this a system the shop and the owner genuinely share:
 
 1. **A database** — Postgres or MySQL, replacing `localStorage`.
 2. **An API** — to read and write jobs, customers and staff.
-3. **Login and roles** — real accounts, with the staff/admin split enforced on
-   the server rather than in the browser, so payment fields can't be reached by
-   editing the page.
+3. **Login and roles** — real accounts checked on the server, so the admin
+   password isn't in the page and payment fields can't be reached by editing it.
 4. **Backups** — a nightly dump, kept off the VPS.
 
 The screens and the data model in this demo carry over as-is; what gets added is

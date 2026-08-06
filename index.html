@@ -509,6 +509,25 @@ label.check input{width:16px; height:16px; accent-color:var(--accent); flex:0 0 
 .tabs button[aria-pressed="true"]{background:var(--surface); color:var(--ink); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .tabs .n{font-family:var(--mono); font-size:10.5px; opacity:.6; margin-left:4px}
 
+/* ============ LOGIN ============ */
+.login{display:none}
+body[data-login] .login{
+  display:flex; align-items:center; justify-content:center;
+  position:fixed; inset:0; z-index:90; padding:22px;
+  background:var(--paper); overflow-y:auto;
+}
+body[data-login] .app{display:none}
+.login-card{
+  width:min(370px,100%); display:flex; flex-direction:column; gap:15px;
+  background:var(--surface); border:1px solid var(--line); border-radius:14px;
+  padding:26px 24px 22px; box-shadow:var(--shadow);
+}
+.login-card .brand-logo{width:132px; height:66px; margin-bottom:2px}
+.login-card h2{font-size:18px}
+.login-sub{font-size:12.5px; color:var(--muted); margin-top:3px}
+.login-card .btn{justify-content:center}
+.login-card .input{font-size:16px; padding:10px 12px}
+
 /* ============ CONFIRM ============ */
 .confirm{
   position:fixed; inset:0; z-index:75; display:none;
@@ -805,9 +824,8 @@ label.check input{width:16px; height:16px; accent-color:var(--accent); flex:0 0 
         <path d="M8 4.6v4M8 11.2v.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
       </svg>
       <span><b>Demo preview</b> — sample data, saved in this browser only.
-        You are viewing as <b class="js-rolename">Staff</b>.</span>
-      <button id="switchRole">Switch to admin view</button>
-      <button id="resetDemo">Reset demo data</button>
+        Nothing is sent anywhere.</span>
+      <button id="resetDemo" class="js-adminonly" hidden>Reset demo data</button>
     </div>
 
     <header class="topbar">
@@ -830,6 +848,7 @@ label.check input{width:16px; height:16px; accent-color:var(--accent); flex:0 0 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="charttip" id="charttip"></div>
 <div class="confirm" id="confirm"></div>
+<div class="login" id="login"></div>
 
 <script>
 (function(){
@@ -1031,17 +1050,36 @@ const ROLE_KEY = "presstrack.role";
 let db, route="new", role="staff";
 let filter={q:"", tab:"active"};
 
-/* No passwords: the role comes from the link you open, and the device
-   remembers it. Opening .../#admin turns this device into an admin device
-   until "Leave admin" is used. Everyone else lands as staff.
-   This is convenience, not security — see the README. */
+/* Admin sign-in.
+   The check runs in the browser, so this keeps staff out of screens they don't
+   need — it is not protection against anyone who reads the page source. The
+   digest below is SHA-256 of "<username>:<password>", stored hashed only so the
+   password itself isn't sitting in a public repository in plain text.
+   Real protection arrives with the backend — see the README. */
+const ADMIN_DIGEST = "7f3d88fe8118bc71cc5c86f72ab071064e2a2dfdd92a451acfd954aeab37646a";
+
+async function sha256Hex(str){
+  const subtle = window.crypto && window.crypto.subtle;
+  if(!subtle) return null;                       // needs HTTPS (or localhost)
+  const buf = await subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf))
+    .map(function(b){ return b.toString(16).padStart(2,"0"); }).join("");
+}
+async function checkAdmin(user, pass){
+  const hex = await sha256Hex(user + ":" + pass);
+  if(hex === null) return {ok:false, reason:"insecure"};
+  return {ok: hex === ADMIN_DIGEST};
+}
+
+/* Staff never see any hint of an admin area — it exists only at #admin, and
+   even there it asks to sign in. The device remembers a successful sign-in. */
 function loadRole(){
   let r = null;
   try{ r = localStorage.getItem(ROLE_KEY); }catch(e){}
-  const h = (location.hash || "").replace(/^#\/?/, "").toLowerCase();
-  if(h === "admin"){ r = "admin"; saveRole(r); }
-  else if(h === "staff"){ r = "staff"; saveRole(r); }
   role = r === "admin" ? "admin" : "staff";
+}
+function wantsAdmin(){
+  return (location.hash || "").replace(/^#\/?/, "").toLowerCase() === "admin";
 }
 function saveRole(r){
   try{ localStorage.setItem(ROLE_KEY, r); }catch(e){}
@@ -1333,17 +1371,13 @@ function renderNav(){
     el.textContent = isAdmin() ? "Admin" : "Staff";
     el.classList.toggle("is-admin", isAdmin());
   });
-  document.querySelectorAll(".js-rolename").forEach(function(el){
-    el.textContent = isAdmin() ? "Admin" : "Staff";
-  });
+  document.querySelectorAll(".js-adminonly").forEach(function(el){ el.hidden = !isAdmin(); });
   document.querySelectorAll(".js-rolenote").forEach(function(el){
     el.textContent = isAdmin()
       ? "Full access, including money"
       : "Jobs, customers and outsourcing";
   });
   document.querySelectorAll(".js-leaveadmin").forEach(function(el){ el.hidden = !isAdmin(); });
-  const sw = $("#switchRole");
-  if(sw) sw.textContent = isAdmin() ? "Switch to staff view" : "Switch to admin view";
 }
 
 function toggleMore(open){
@@ -1656,6 +1690,65 @@ function renderCustomers(){
         }).join("")
       + '</tbody></table></div>'
     + '</section>';
+}
+
+/* ===================== ADMIN SIGN-IN ===================== */
+
+let loginShown = false;
+
+function renderLogin(msg){
+  loginShown = true;
+  document.body.setAttribute("data-login", "1");
+  $("#login").innerHTML =
+    '<form class="login-card" id="loginForm" novalidate>'
+      + '<span class="brand-logo" role="img" aria-label="Warnitha Printshop"></span>'
+      + '<div>'
+        + '<h2>Admin sign in</h2>'
+        + '<p class="login-sub">Payments, reports and team settings.</p>'
+      + '</div>'
+      + '<label class="f"><span>Username</span>'
+        + '<input class="input" name="user" autocomplete="username" autocapitalize="none" spellcheck="false"></label>'
+      + '<label class="f"><span>Password</span>'
+        + '<input class="input" name="pass" type="password" autocomplete="current-password"></label>'
+      + '<p class="err" id="loginErr"'+(msg?'':' hidden')+'>'+esc(msg||"")+'</p>'
+      + '<button class="btn btn-primary" type="submit" id="loginBtn">Sign in</button>'
+      + '<button class="btn btn-ghost btn-sm" type="button" id="loginBack">Back to the job form</button>'
+    + '</form>';
+  const u = $("#loginForm").user;
+  if(u) setTimeout(function(){ u.focus(); }, 60);
+}
+
+function hideLogin(){
+  loginShown = false;
+  document.body.removeAttribute("data-login");
+  $("#login").innerHTML = "";
+}
+
+async function submitLogin(){
+  const f = $("#loginForm"); if(!f) return;
+  const btn = $("#loginBtn"), err = $("#loginErr");
+  const user = f.user.value.trim(), pass = f.pass.value;
+  if(!user || !pass){
+    err.textContent = "Enter both the username and the password."; err.hidden = false; return;
+  }
+  btn.disabled = true; btn.textContent = "Checking…";
+  const res = await checkAdmin(user, pass);
+  btn.disabled = false; btn.textContent = "Sign in";
+
+  if(res.reason === "insecure"){
+    err.textContent = "Sign-in needs a secure (https) connection.";
+    err.hidden = false; return;
+  }
+  if(!res.ok){
+    err.textContent = "Wrong username or password."; err.hidden = false;
+    f.pass.value = ""; f.pass.focus();
+    return;
+  }
+  setRole("admin");
+  hideLogin();
+  history.replaceState(null, "", location.pathname + location.search);
+  go("dashboard", true);
+  toast("Signed in as admin");
 }
 
 /* ===================== ANALYTICS ===================== */
@@ -3069,12 +3162,18 @@ document.addEventListener("click", function(e){
 
   if(t.id === "scrim"){ closeDrawer(); return; }
 
-  if(t.id === "switchRole" || t.closest(".js-leaveadmin")){
-    const to = isAdmin() ? "staff" : "admin";
-    setRole(to);
+  if(t.closest(".js-leaveadmin")){
+    setRole("staff");
     closeDrawer(); toggleMore(false);
-    go(pageAllowed(route) ? route : homeRoute(), true);
-    toast(to === "admin" ? "Admin view — full access" : "Staff view — jobs, customers, outsourcing");
+    go(homeRoute(), true);
+    toast("Signed out of admin");
+    return;
+  }
+
+  if(t.id === "loginBack"){
+    hideLogin();
+    history.replaceState(null, "", location.pathname + location.search);
+    go(homeRoute(), true);
     return;
   }
 
@@ -3089,18 +3188,19 @@ document.addEventListener("click", function(e){
 });
 
 window.addEventListener("hashchange", function(){
-  // The role links are hashes too, and following one while the app is already
-  // open changes the hash without reloading — so re-read the role here as well.
-  const h = (location.hash || "").replace(/^#\/?/, "").toLowerCase();
-  if(h === "admin" || h === "staff"){
-    const to = h === "admin" ? "admin" : "staff";
-    const changed = to !== role;
-    setRole(to);
+  // #admin is a hash, so following it while the app is already open changes the
+  // hash without reloading — the sign-in has to be opened from here too.
+  if(wantsAdmin()){
     toggleMore(false); closeDrawer();
-    go(homeRoute(), true);
-    if(changed) toast(to === "admin" ? "Admin view — full access" : "Staff view — jobs, customers, outsourcing");
+    if(isAdmin()){
+      history.replaceState(null, "", location.pathname + location.search);
+      go("dashboard", true);
+    }else{
+      renderLogin("");
+    }
     return;
   }
+  if(loginShown) hideLogin();
   route = routeFromHash();
   toggleMore(false); closeDrawer(); render(); window.scrollTo(0,0);
 });
@@ -3171,8 +3271,13 @@ document.addEventListener("mouseout", function(e){
   if(e.target.closest && e.target.closest("[data-tip]")) $("#charttip").classList.remove("show");
 });
 
+document.addEventListener("submit", function(e){
+  if(e.target.id === "loginForm"){ e.preventDefault(); submitLogin(); }
+});
+
 document.addEventListener("keydown", function(e){
   if(e.key !== "Escape") return;
+  if(loginShown) return;          // Esc must not dismiss the sign-in
   if(confirmResolve) closeConfirm(false);
   else if(drawerOpen) closeDrawer();
   else if(!$("#moreSheet").hidden) toggleMore(false);
@@ -3192,8 +3297,15 @@ window.addEventListener("resize", function(){
 loadRole();
 document.body.setAttribute("data-role-mode", role);
 load();
-route = routeFromHash();
-go(route, true);
+
+if(wantsAdmin() && !isAdmin()){
+  render();                       // build the app underneath, then cover it
+  renderLogin("");
+}else{
+  if(wantsAdmin()) history.replaceState(null, "", location.pathname + location.search);
+  route = routeFromHash();
+  go(route, true);
+}
 
 })();
 </script>
