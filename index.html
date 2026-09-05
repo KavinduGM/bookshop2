@@ -3136,6 +3136,24 @@ document.addEventListener("click", function(e){
   }
 });
 
+/* Two tabs (or two windows) on the same device share one store, but each holds
+   its own copy in memory. Without this, an admin leaving the dashboard open
+   never sees what the counter tab just booked in. */
+window.addEventListener("storage", function(e){
+  if(e.key !== KEY || e.newValue === null) return;
+  let incoming;
+  try{ incoming = migrate(JSON.parse(e.newValue)); }catch(err){ return; }
+  db = incoming;
+
+  if(loginShown) return;
+  renderNav();                                  // counts are always safe to refresh
+  // Never redraw over a form somebody is part-way through typing into.
+  const busy = drawerOpen || route === "new";
+  if(busy) return;
+  render();
+  toast("Updated with changes from another tab");
+});
+
 window.addEventListener("hashchange", function(){
   // #admin is a hash, so following it while the app is already open changes the
   // hash without reloading — the sign-in has to be opened from here too.

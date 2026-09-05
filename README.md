@@ -17,8 +17,10 @@ the browser (`localStorage`); nothing is sent to a server.
 In practice that means:
 
 - What the shop enters is visible **only on the shop's own device**.
-- The admin opens the same address and sees **an empty system**, not the shop's
-  work.
+- The admin opens the same address on a different phone or laptop and sees **an
+  empty system**, not the shop's work. This is the single biggest limitation:
+  the staff device and the admin device do not talk to each other.
+- Two tabs or windows on the **same** device do stay in step with each other.
 - Clearing browser data, or "clear site data", erases the records.
 - The admin sign-in is checked in the browser, so it keeps staff out of screens
   they don't need but does not stop anyone who reads the page source.
