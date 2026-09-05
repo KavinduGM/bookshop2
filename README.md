@@ -9,46 +9,29 @@ everything at a glance.
 
 ---
 
-## ⚠️ Read this before handing over
+## How it works
 
-**Every device keeps its own separate copy of the data.** Records are stored in
-the browser (`localStorage`); nothing is sent to a server.
+Records live in a **PostgreSQL database on your server**, not in the browser.
+Everyone signs in to the same system, so a job booked in on the shop's phone is
+visible to the admin anywhere in the world, on any device, straight away.
 
-In practice that means:
-
-- What the shop enters is visible **only on the shop's own device**.
-- The admin opens the same address on a different phone or laptop and sees **an
-  empty system**, not the shop's work. This is the single biggest limitation:
-  the staff device and the admin device do not talk to each other.
-- Two tabs or windows on the **same** device do stay in step with each other.
-- Clearing browser data, or "clear site data", erases the records.
-- The admin sign-in is checked in the browser, so it keeps staff out of screens
-  they don't need but does not stop anyone who reads the page source.
-
-This is complete and usable as a **single-device register** — one phone or one
-counter PC — and as the finished picture of how the system works. It becomes a
-shared system when the backend is added; see
-[What the real version needs](#what-the-real-version-needs).
-
-**Back up regularly** by exporting from the browser or keeping the records
-elsewhere until then.
+Each device checks for changes every few seconds while its screen is on, so an
+open dashboard updates itself without being reloaded. A form that is part-way
+through being filled in is never redrawn underneath the person typing.
 
 ---
 
 ## Two roles
 
-Staff need nothing: the plain address is already theirs and opens straight into
-the job form. There is no sign-in and no sign of an admin area anywhere in what
-they see.
+Both roles sign in, and a session lasts 30 days on that device.
 
-| Who | Address | Lands on |
-| --- | --- | --- |
-| Shop staff | `https://your-subdomain/` | The New Job form |
-| Admin | `https://your-subdomain/#admin` | Sign-in, then the Dashboard |
+| Who | Address | Signs in with | Lands on |
+| --- | --- | --- | --- |
+| Shop staff | `https://your-subdomain/` | The shop password | The New Job form |
+| Admin | `https://your-subdomain/#admin` | Username and password | The Dashboard |
 
-**Admin sign-in** is at `/#admin`. Once signed in, that phone or laptop stays
-signed in until **Leave admin** in the sidebar. Credentials are set in
-`index.html` — see below to change them.
+The plain address asks only for a password and shows no sign that an admin area
+exists. **Leave admin** in the sidebar signs out.
 
 ### What each role can do
 
@@ -66,33 +49,41 @@ signed in until **Leave admin** in the sidebar. Credentials are set in
 
 Staff typing an admin address get sent back to the job form.
 
-### Changing the admin password
+### Changing the passwords
 
-The password is **not** stored in the file. What is stored is a SHA-256 digest
-of `username:password`, so the password itself never appears in the repository.
+Passwords are **not** in the code. They are environment variables set on the
+server, hashed with scrypt before they are compared, and never written to the
+database. To change one, edit it in Dokploy's Environment tab and redeploy.
 
-To change it, generate a new digest and replace `ADMIN_DIGEST` in `index.html`:
+| Variable | What it is |
+| --- | --- |
+| `STAFF_PASSWORD` | The one password the shop staff share |
+| `ADMIN_PASSWORD` | The admin's password |
+| `ADMIN_USERNAME` | Defaults to `Admin` |
+| `SESSION_SECRET` | Signs the session cookies — generate once, then leave it alone |
+| `DB_PASSWORD` | The database container's password |
+
+Generate the session secret with:
 
 ```bash
-printf '%s' 'NewUser:NewPassword' | shasum -a 256
+openssl rand -hex 32
 ```
 
-### ⚠️ What this sign-in is and isn't
+Changing `SESSION_SECRET` signs every device out, which is the quickest way to
+lock out a lost phone.
 
-The check runs **in the browser**. It keeps staff out of screens they don't need
-— which is what it is for — but anyone who opens the page source can see how it
-works and get past it. It is a door with a lock, not a wall.
+### Access is enforced on the server
 
-Two consequences worth acting on:
+Every rule is checked by the server, not the browser:
 
-- **Don't reuse this password anywhere else.** Treat it as public.
-- The repository is public. Even hashed, a short or guessable password can be
-  cracked offline — use a long one, or make the repository private.
+- A staff session that sends a new job total is ignored — the amount is dropped
+  before it reaches the database.
+- Deleting anything, adding team members, recording final payments and erasing
+  the system all return **403 Forbidden** to a staff session.
+- Signed-out requests get **401** and never see a single record.
 
-Real protection needs accounts checked on a server, which arrives with the
-backend (see [What the real version needs](#what-the-real-version-needs)).
-
----
+Sessions are signed HTTP-only cookies, so page scripts cannot read them, and
+repeated wrong passwords from one address are slowed down.
 
 ## Starting fresh
 
@@ -107,25 +98,7 @@ admin:
 Jobs can be booked in from minute one; if nobody has been added to the team yet,
 jobs simply save with no one assigned and can be assigned later.
 
-### Job numbers
-
-Job numbers are the date followed by a counter that restarts every morning:
-
-```
-260903001   ← 3 Sep 2026, first job of the day
-260903002   ← 3 Sep 2026, second job
-260904001   ← 4 Sep 2026, back to 1
-```
-
-The format is `YYMMDD` + `001`, `002`, `003` … Past 999 in a single day the
-number simply grows a digit rather than repeating.
-
-A number is never reissued: the counter is checked against the highest number
-already used that day, so restoring a backup or editing the stored data by hand
-cannot hand out the same number twice.
-
-**Team → Erase all data** wipes everything on the device, for clearing out
-practice entries after training.
+Job numbers are described under [How it's built](#job-numbers).
 
 ---
 
@@ -275,38 +248,48 @@ The layout is built for phones, not just shrunk to fit:
 
 ### 1. Point the subdomain at the VPS
 
-Add a DNS **A record** for your subdomain to the VPS IP address, and wait for it
-to resolve before step 3.
+Add a DNS **A record** for the subdomain to your VPS address, and let it
+resolve before adding the domain in Dokploy.
 
 ### 2. Create the application
 
-In Dokploy: **Create Application** → **Provider: GitHub** →
-repository `KavinduGM/bookshop2`, branch `main`.
+**Create Application** → **Provider: GitHub** → `KavinduGM/bookshop2`, branch
+`main` → Build Type **Docker Compose**, file `docker-compose.yml`.
 
-Set **Build Type** to **Dockerfile** and leave the path as `./Dockerfile`.
+### 3. Set the environment
 
-### 3. Add the domain
+Under **Environment**, using `.env.example` as the list:
 
-Under the application's **Domains** tab:
+```
+DB_PASSWORD=<a long random string>
+SESSION_SECRET=<openssl rand -hex 32>
+STAFF_PASSWORD=<the shop's password>
+ADMIN_PASSWORD=<your password>
+ADMIN_USERNAME=Admin
+```
 
-| Setting | Value |
-| --- | --- |
-| Host | your subdomain |
-| Container port | `80` |
-| HTTPS | on (Let's Encrypt) |
+### 4. Add the domain
 
-### 4. Deploy
+Point it at the **app** service, container port **3000**, HTTPS on.
 
-Hit **Deploy**. Dokploy builds the image and routes traffic to it. Pushing to
-`main` afterwards redeploys.
+### 5. Deploy
+
+The database creates its own tables on first start, so there is no migration
+step. Pushing to `main` redeploys.
 
 **Health check:** `GET /healthz` returns `200 ok`.
 
-### Deploying via Compose instead
+### Backups
 
-If you would rather use Dokploy's **Compose** type, `docker-compose.yml` is
-included. Remove the `ports:` block first and attach the service to Dokploy's
-Traefik network, otherwise port 8080 is published straight to the internet.
+The database lives in the `db-data` volume. Set up Dokploy's scheduled Postgres
+backup against the `db` service — this is the one piece of housekeeping that
+matters, because the records now exist in exactly one place.
+
+To take one by hand:
+
+```bash
+docker compose exec db pg_dump -U warnitha warnitha > backup.sql
+```
 
 ---
 
@@ -315,13 +298,30 @@ Traefik network, otherwise port 8080 is published straight to the internet.
 With Docker:
 
 ```bash
+cp .env.example .env
 docker compose up --build
 ```
 
-Then open <http://localhost:8080>.
+Then open <http://localhost:3000> (uncomment the `ports:` block first).
 
-Without Docker — it is a single file with no dependencies, so just open
-`index.html` in a browser.
+Without Docker, against a throwaway in-memory database — handy for trying
+changes without installing PostgreSQL:
+
+```bash
+cd server && npm install && node test/devserver.js
+```
+
+That serves the whole system on <http://127.0.0.1:8971> with the shop password
+`shop2026` and admin `Admin` / `Admin2026#`. Nothing is kept when it stops.
+
+### Tests
+
+```bash
+cd server && npm test
+```
+
+41 checks covering the schema, sign-in, who may change money, job numbering
+under simultaneous requests, and every admin-only route.
 
 ---
 
@@ -329,63 +329,51 @@ Without Docker — it is a single file with no dependencies, so just open
 
 | File | Purpose |
 | --- | --- |
-| `index.html` | The whole application — markup, styles and logic, no dependencies |
-| `nginx.conf` | Serves the file, gzip, security headers, `/healthz` |
-| `Dockerfile` | `nginx:1.27-alpine` + the two files above |
-| `docker-compose.yml` | Local runs, and the Compose deploy option |
+| `index.html` | The whole front end — markup, styles and logic, no framework |
+| `server/server.js` | API, sessions, access rules, and serving the page |
+| `server/db.js` | Schema and every SQL query |
+| `server/auth.js` | Password hashing and cookie signing |
+| `server/test/api.test.js` | The test suite |
+| `server/test/devserver.js` | Local run against an in-memory database |
+| `Dockerfile` | Node 22 Alpine, runs as a non-root user |
+| `docker-compose.yml` | The app and PostgreSQL together |
 
-No build step, no `node_modules`, no framework. The image is a few megabytes and
-starts instantly.
+The front end is still one self-contained file with no framework and no fonts
+or scripts fetched over the network, so it loads in well under a tenth of a
+second. Long lists render 60 rows at a time behind a "Show more" button.
 
-Everything is themed through CSS custom properties. The palette is white and
-blue to match Warnitha's branding, and the system stays white even on a phone
-set to dark mode — there is deliberately no dark variant. The logo is embedded
-as a data URI so the app stays a single file with no external requests.
+### Job numbers
 
-Chart colours are a validated categorical palette — checked for colour-blind
-separation and contrast in both light and dark mode, with every donut segment
-also labelled in the legend so colour is never the only cue.
+Numbers are handed out **by the server**, inside the same transaction that
+creates the job, so two people booking work at the same moment can never be
+given the same number. The format is the date plus a counter that restarts each
+morning:
 
-### Resetting the sample data
+```
+260903001   ← 3 Sep 2026, first job of the day
+260903002   ← 3 Sep 2026, second job
+260904001   ← 4 Sep 2026, back to 1
+```
 
-Signed in as admin, the banner at the top has a **Reset demo data** link that
-restores the original sample jobs. Staff don't see it.
+The device sends its own local date, so the number always matches the shop's
+day rather than the server's timezone.
 
----
+## Still to consider
 
-## Security and performance
+The system is complete and shared. Worth doing when you get a chance:
 
-**Served headers** (`nginx.conf`): a Content-Security-Policy of
-`default-src 'none'` — the app makes no network requests at all, so everything
-external is blocked outright — plus HSTS, `X-Frame-Options: DENY`,
-`X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` and a
-restrictive `Permissions-Policy`.
-
-**In the page**: every value rendered is HTML-escaped, so a customer name
-containing markup is shown as text and never executed. Field lengths are capped
-so a pasted document can't fill the browser's storage quota. If a save ever
-fails — private mode, full storage — it says so loudly instead of losing the
-work silently.
-
-**Speed**: one file, no framework, no fonts or scripts fetched over the network.
-Loads in well under a tenth of a second. Long lists render 60 rows at a time
-with a "Show more" button, and search is debounced, so a register with hundreds
-of jobs stays responsive on a cheap Android phone.
+1. **Scheduled backups** — the records now live in one place. Turn on Dokploy's
+   Postgres backup before the shop relies on it.
+2. **Individual staff logins** — everyone currently shares one password, so a
+   job records no author. Per-person accounts would show who booked what and
+   let you remove one person without changing everyone's password.
+3. **Password rotation** — change `STAFF_PASSWORD` whenever someone leaves.
 
 ---
 
-## What the real version needs
+## Erasing everything
 
-To make this a system the shop and the owner genuinely share:
-
-1. **A database** — Postgres or MySQL, replacing `localStorage`.
-2. **An API** — to read and write jobs, customers and staff.
-3. **Login and roles** — real accounts checked on the server, so the admin
-   password isn't in the page and payment fields can't be reached by editing it.
-4. **Backups** — a nightly dump, kept off the VPS.
-
-Until then the records live on one device, so treat that device as the system
-of record and keep a copy elsewhere.
-
-The screens and the data model in this demo carry over as-is; what gets added is
-the storage and access layer underneath them.
+**Team → Erase all data** clears every job, customer, outsourcing place and team
+member from the database — on every device, not just the one in front of you.
+It is admin-only, asks for confirmation, and cannot be undone. Use it once,
+after training, to start the real records clean.

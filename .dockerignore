@@ -3,5 +3,9 @@
 .dockerignore
 docker-compose.yml
 README.md
-.DS_Store
+.env
+.env.example
+server/node_modules
+server/test
 *.log
+.DS_Store

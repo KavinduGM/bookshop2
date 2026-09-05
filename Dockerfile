@@ -1,22 +1,29 @@
-# PressTrack — print shop job tracker (UI demo)
+# Warnitha Printshop — order tracking system
 #
-# The app is a single self-contained HTML file: no build step, no dependencies,
-# no runtime. nginx just serves it.
+# One small Node image serving both the API and the page. The database runs in
+# its own container (see docker-compose.yml).
 
-FROM nginx:1.27-alpine
+FROM node:22-alpine
 
-LABEL org.opencontainers.image.title="PressTrack" \
-      org.opencontainers.image.description="Print shop job tracking system — UI demo" \
+LABEL org.opencontainers.image.title="Warnitha Printshop Order Tracking" \
       org.opencontainers.image.source="https://github.com/KavinduGM/bookshop2"
 
-RUN rm /etc/nginx/conf.d/default.conf
-COPY nginx.conf /etc/nginx/conf.d/app.conf
-COPY index.html /usr/share/nginx/html/index.html
+ENV NODE_ENV=production
+WORKDIR /app
 
-EXPOSE 80
+# Dependencies first, so a change to the app doesn't reinstall them.
+COPY server/package.json server/package-lock.json* ./server/
+RUN cd server && npm install --omit=dev --no-audit --no-fund
 
-# Dokploy and Docker both use this to tell "container started" from "site actually up".
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -q -O /dev/null http://127.0.0.1/healthz || exit 1
+COPY server/ ./server/
+COPY index.html ./index.html
 
-CMD ["nginx", "-g", "daemon off;"]
+# Don't run as root.
+USER node
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:3000/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+
+CMD ["node", "server/server.js"]

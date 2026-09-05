@@ -316,8 +316,6 @@ tbody tr:hover{background:var(--surface-2)}
 .chip-xs{font-size:10.5px; padding:2px 7px}
 .chip.ph-hold{color:var(--warn); background:var(--warn-soft); border-color:color-mix(in srgb,var(--warn) 28%,transparent)}
 .chip.ph-cancel{color:var(--bad); background:var(--bad-soft); border-color:color-mix(in srgb,var(--bad) 26%,transparent)}
-.chip.due-late{color:var(--bad); background:var(--bad-soft); border-color:color-mix(in srgb,var(--bad) 26%,transparent)}
-.chip.due-soon{color:var(--warn); background:var(--warn-soft); border-color:color-mix(in srgb,var(--warn) 28%,transparent)}
 
 /* CMYK phase strip — 4 segments: prepress / press / finishing / delivery */
 .pipe{display:flex; gap:2px; width:96px}
@@ -402,6 +400,16 @@ tbody tr:hover{background:var(--surface-2)}
   box-shadow:var(--shadow);
 }
 .charttip.show{opacity:1}
+
+/* Shown across the top whenever the server can't be reached, so nobody keeps
+   typing into a system that isn't saving. */
+body.is-offline .main::before{
+  content:"No connection to the server — changes are not being saved";
+  display:block; padding:8px 16px; text-align:center;
+  background:var(--bad-soft); color:var(--bad);
+  font-size:12.5px; font-weight:600;
+  border-bottom:1px solid color-mix(in srgb,var(--bad) 30%,transparent);
+}
 
 /* ============ ATTENTION LIST ============ */
 .alist{display:flex; flex-direction:column}
@@ -944,119 +952,98 @@ function refreshToday(){
 
 /* A brand-new system starts completely empty — the shop enters its own team,
    customers and outsourcing places on day one. */
-function seed(){
-  return {
-    staff:     [],
-    customers: [],
-    partners:  [],
-    jobs:      [],
-    nextJobNo: 1,
-    codeDate:  dateStamp(TODAY)
-  };
-}
+/* ===================== STATE & SERVER ===================== */
 
-/* ===================== STATE ===================== */
+/* Every record lives in the database on the server, so the same register is
+   seen from any phone or computer. Nothing is kept in this browser except the
+   session cookie, which the browser manages itself. */
 
-const KEY = "presstrack.demo.v1";
-const ROLE_KEY = "presstrack.role";
-let db, route="new", role="staff";
-let filter={q:"", tab:"active"};
+let db = {staff:[], customers:[], partners:[], jobs:[], version:0};
+let route = "new", role = null;
+let filter = {q:"", tab:"active"};
 let searchTimer = null;
+let offline = false;
 
-/* Admin sign-in.
-   The check runs in the browser, so this keeps staff out of screens they don't
-   need — it is not protection against anyone who reads the page source. The
-   digest below is SHA-256 of "<username>:<password>", stored hashed only so the
-   password itself isn't sitting in a public repository in plain text.
-   Real protection arrives with the backend — see the README. */
-const ADMIN_DIGEST = "7f3d88fe8118bc71cc5c86f72ab071064e2a2dfdd92a451acfd954aeab37646a";
-
-async function sha256Hex(str){
-  const subtle = window.crypto && window.crypto.subtle;
-  if(!subtle) return null;                       // needs HTTPS (or localhost)
-  const buf = await subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf))
-    .map(function(b){ return b.toString(16).padStart(2,"0"); }).join("");
-}
-async function checkAdmin(user, pass){
-  const hex = await sha256Hex(user + ":" + pass);
-  if(hex === null) return {ok:false, reason:"insecure"};
-  return {ok: hex === ADMIN_DIGEST};
-}
-
-/* Staff never see any hint of an admin area — it exists only at #admin, and
-   even there it asks to sign in. The device remembers a successful sign-in. */
-function loadRole(){
-  let r = null;
-  try{ r = localStorage.getItem(ROLE_KEY); }catch(e){}
-  role = r === "admin" ? "admin" : "staff";
-}
 function wantsAdmin(){
   return (location.hash || "").replace(/^#\/?/, "").toLowerCase() === "admin";
 }
-function saveRole(r){
-  try{ localStorage.setItem(ROLE_KEY, r); }catch(e){}
-}
 function setRole(r){
-  role = r; saveRole(r);
-  document.body.setAttribute("data-role-mode", r);
+  role = r;
+  document.body.setAttribute("data-role-mode", r || "staff");
 }
 
-function load(){
-  try{
-    const raw = localStorage.getItem(KEY);
-    if(raw){ db = migrate(JSON.parse(raw)); return; }
-  }catch(e){ /* private mode / corrupt data — fall through to seed */ }
-  db = seed();
+function applyState(state){
+  if(!state) return;
+  db = {
+    staff:     state.staff     || [],
+    customers: state.customers || [],
+    partners:  state.partners  || [],
+    jobs:      state.jobs      || [],
+    version:   state.version   || 0
+  };
 }
 
-/* Bring data saved by an earlier version up to the current shape. */
-function migrate(d){
-  if(!d.partners) d.partners = [];
-  // Job numbers used to run yearly (JOB-2026-0001) and now run daily
-  // (260903001). Codes already issued are left alone — they may be written on
-  // paper dockets — and only the counter moves to the new scheme.
-  if(d.codeDate === undefined){
-    delete d.codeYear;
-    d.codeDate  = dateStamp(TODAY);
-    d.nextJobNo = 1;
-  }
-  (d.jobs || []).forEach(function(j){
-    if(RETIRED_STAGES[j.status]) j.status = RETIRED_STAGES[j.status];
-    if(j.outsourced === undefined) j.outsourced = false;
-    if(!j.type) j.type = "Other";
-    if(j.outsourceCost === undefined) j.outsourceCost = 0;
-    if(j.outsourcePaid === undefined) j.outsourcePaid = 0;
-    if(j.outsourcePaidDate === undefined) j.outsourcePaidDate = "";
-  });
-  return d;
-}
-/* Silently swallowing a failed write would lose the shop's work without anyone
-   noticing, so a failure is surfaced loudly instead. */
-let storageWarned = false;
-function save(){
+/* One place where every request goes, so a dropped connection or an expired
+   session is handled the same way wherever it happens. */
+async function api(method, path, body){
+  let res;
   try{
-    localStorage.setItem(KEY, JSON.stringify(db));
-    storageWarned = false;
-    return true;
+    res = await fetch(path, {
+      method: method,
+      credentials: "same-origin",
+      headers: body ? {"Content-Type": "application/json"} : undefined,
+      body: body ? JSON.stringify(body) : undefined
+    });
   }catch(e){
-    if(!storageWarned){
-      storageWarned = true;
-      askConfirm({
-        title: "This device could not save",
-        ok: "I understand",
-        cancel: "Close",
-        danger: true,
-        body: '<p>The last change is on screen but was <b>not stored</b>. It will be '
-          + 'lost when this page is closed.</p>'
-          + '<p style="margin-top:10px">This usually means the browser is in private '
-          + 'mode, or its storage is full. Write down anything important, then close '
-          + 'private browsing or free up space.</p>'
-      });
-    }
-    return false;
+    setOffline(true);
+    throw new Error("No connection to the server.");
   }
+  setOffline(false);
+
+  if(res.status === 401){
+    // The session ran out, or this device was signed out elsewhere.
+    setRole(null);
+    renderSignIn("Your session has ended. Please sign in again.");
+    throw new Error("Signed out");
+  }
+  let data = null;
+  try{ data = await res.json(); }catch(e){ data = null; }
+  if(!res.ok) throw new Error((data && data.error) || "The server refused that.");
+  if(data && data.state) applyState(data.state);
+  return data || {};
 }
+
+function setOffline(v){
+  if(offline === v) return;
+  offline = v;
+  document.body.classList.toggle("is-offline", v);
+  if(v) toast("Lost connection to the server — retrying");
+}
+
+async function refreshState(){
+  const state = await api("GET", "/api/state");
+  applyState(state);
+}
+
+/* Polling keeps every device in step: the counter only changes when somebody
+   writes, so this is one small number most of the time. */
+let pollTimer = null;
+function startPolling(){
+  stopPolling();
+  pollTimer = setInterval(async function(){
+    if(document.hidden || !role) return;
+    try{
+      const r = await api("GET", "/api/version");
+      if(!r || r.version === db.version) return;
+      await refreshState();
+      renderNav();
+      // Never redraw over a form somebody is part-way through typing into.
+      if(loginShown || drawerOpen || route === "new") return;
+      render();
+    }catch(e){ /* handled in api(); the next tick tries again */ }
+  }, 12000);
+}
+function stopPolling(){ if(pollTimer) clearInterval(pollTimer); pollTimer = null; }
 
 /* ===================== HELPERS ===================== */
 
@@ -1140,17 +1127,6 @@ function chipClass(status){
 }
 
 /* Due-date state: overdue, due soon (<=3 days), or fine. */
-function dueState(j){
-  // Only meaningful while the job is still in the shop — once it's handed over,
-  // the deadline stopped mattering.
-  if(!isActive(j) || !j.dueDate) return null;
-  const d = daysBetween(TODAY, j.dueDate);
-  if(d < 0)  return {cls:"due-late", text:Math.abs(d)+"d late"};
-  if(d === 0) return {cls:"due-late", text:"Due today"};
-  if(d <= 3) return {cls:"due-soon", text:"in "+d+"d"};
-  return null;
-}
-
 function pipeHTML(status, big){
   const idx = phaseIndex(status);
   const done = status==="completed";
@@ -1335,8 +1311,6 @@ function toggleMore(open){
 
 function renderDashboard(){
   const active   = db.jobs.filter(isActive);
-  const overdue  = active.filter(function(j){ return j.dueDate && daysBetween(TODAY, j.dueDate) < 0; });
-  const dueSoon  = active.filter(function(j){ const d = j.dueDate ? daysBetween(TODAY,j.dueDate) : 99; return d>=0 && d<=3; });
   const awaiting = db.jobs.filter(function(j){ return j.status==="ready"; });
   const owing    = db.jobs.filter(function(j){ return !isClosed(j) && balance(j)>0; });
   const outstanding = owing.reduce(function(s,j){ return s+balance(j); }, 0);
@@ -1354,14 +1328,14 @@ function renderDashboard(){
   db.jobs.filter(function(j){ return j.status==="delivered" && balance(j)>0; }).forEach(function(j){
     flag(j, "var(--bad)", "Handed over "+fmtDate(j.handoverDate)+" · "+money(balance(j))+" still unpaid");
   });
-  overdue.forEach(function(j){
-    flag(j, "var(--bad)", "Deadline passed "+plural(Math.abs(daysBetween(TODAY,j.dueDate)),"day")+" ago · still in "+statusMeta(j.status).label);
-  });
   awaiting.forEach(function(j){
     flag(j, "var(--accent)", "Finished and waiting for customer collection");
   });
-  dueSoon.forEach(function(j){
-    flag(j, "var(--warn)", "Due "+fmtDate(j.dueDate)+" · currently in "+statusMeta(j.status).label);
+  active.filter(function(j){ return !j.status; }).forEach(function(j){
+    flag(j, "var(--warn)", "Booked in "+fmtDate(j.startDate)+" · no stage set yet");
+  });
+  db.jobs.filter(function(j){ return j.status==="hold"; }).forEach(function(j){
+    flag(j, "var(--warn)", "On hold since "+fmtDate(j.startDate));
   });
 
   // Workload per phase
@@ -1370,6 +1344,7 @@ function renderDashboard(){
   });
   const maxPhase = Math.max(1, Math.max.apply(null, byPhase.map(function(x){return x.n;})));
   const unstaged = active.filter(function(j){ return !j.status; }).length;
+  const unstagedCount = unstaged;
   const outLive  = active.filter(function(j){ return j.outsourced; }).length;
 
   const recent = db.jobs.slice().sort(function(a,b){
@@ -1379,8 +1354,7 @@ function renderDashboard(){
   $("#view").innerHTML =
     '<section class="kpis">'
     + kpi("Jobs on the floor", active.length, "", "var(--accent)",
-        overdue.length ? '<b>'+overdue.length+' past deadline</b> · '+dueSoon.length+' due within 3 days'
-                       : dueSoon.length+' due within 3 days')
+        unstagedCount ? '<b>'+unstagedCount+'</b> with no stage set yet' : 'All have a stage set')
     + kpi("Ready for handover", awaiting.length, "", "var(--ph3)",
         awaiting.length ? 'Finished work sitting in the shop' : 'Nothing waiting')
     + kpi("Money still owed", money(outstanding), "", "var(--bad)",
@@ -1454,12 +1428,11 @@ function jobTable(list){
   }
   return '<div class="tablewrap"><table><thead><tr>'
     + '<th>Job</th><th>Customer</th><th>Assigned</th><th>Progress</th><th>Status</th>'
-    + '<th class="t-right">Total</th><th class="t-right">Balance</th><th class="t-nowrap">Deadline</th>'
+    + '<th class="t-right">Total</th><th class="t-right">Balance</th><th class="t-nowrap">Handover</th>'
     + '</tr></thead><tbody>'
     + list.map(function(j){
         const c = jobCustomer(j);
         const bal = balance(j);
-        const due = dueState(j);
         const out = jobPartner(j);
         return '<tr data-job="'+j.id+'">'
           + '<td class="td-primary" style="min-width:200px"><span class="jobname">'+esc(j.name)+'</span>'
@@ -1474,8 +1447,7 @@ function jobTable(list){
           + '<td data-label="Total" class="t-right"><span class="money">'+money(j.total)+'</span></td>'
           + '<td data-label="Balance" class="t-right"><span class="money '+(bal>0?"money-due":"money-ok")+'">'
               + (bal>0 ? money(bal) : "Settled") + '</span></td>'
-          + '<td data-label="Deadline" class="t-nowrap"><span class="money" style="font-size:12px">'+fmtDate(j.dueDate)+'</span>'
-              + (due ? ' <span class="chip '+due.cls+'" style="margin-left:4px">'+due.text+'</span>' : '')+'</td>'
+          + '<td data-label="Handover" class="t-nowrap"><span class="money" style="font-size:12px">'+fmtDate(j.handoverDate)+'</span></td>'
           + '</tr>';
       }).join("")
     + '</tbody></table></div>';
@@ -1499,7 +1471,7 @@ function filteredJobs(){
     const c = jobCustomer(j);
     return (j.name+" "+j.code+" "+c.name+" "+c.company+" "+c.phone+" "+statusMeta(j.status).label)
            .toLowerCase().indexOf(q) > -1;
-  }).sort(function(a,b){ return (a.dueDate||"9999").localeCompare(b.dueDate||"9999"); });
+  }).sort(function(a,b){ return (b.startDate||"").localeCompare(a.startDate||"") || String(b.code).localeCompare(String(a.code)); });
 }
 
 /* Rendering thousands of rows into innerHTML is what makes a list feel slow on
@@ -1696,8 +1668,6 @@ function jobCardHTML(j){
       + '<div class="pc-dates">'
         + '<div><span class="pc-lbl">Started</span>'
           + '<span class="pc-mono">' + fmtDate(j.startDate) + '</span></div>'
-        + '<div><span class="pc-lbl">Deadline</span>'
-          + '<span class="pc-mono">' + fmtDate(j.dueDate) + '</span></div>'
         + '<div><span class="pc-lbl">Handover</span>'
           + '<span class="pc-mono">' + fmtDate(j.handoverDate) + '</span></div>'
       + '</div>'
@@ -1745,26 +1715,35 @@ window.addEventListener("afterprint", function(){ $("#printcard").innerHTML = ""
 
 let loginShown = false;
 
-function renderLogin(msg){
+/* Two doors to the same building. The plain address asks only for the shop
+   password; /#admin asks for a username as well. Staff are never shown that an
+   admin area exists. */
+function renderSignIn(msg){
+  const asAdmin = wantsAdmin();
   loginShown = true;
+  stopPolling();
   document.body.setAttribute("data-login", "1");
   $("#login").innerHTML =
     '<form class="login-card" id="loginForm" novalidate>'
       + '<span class="brand-logo" role="img" aria-label="Warnitha Printshop"></span>'
       + '<div>'
-        + '<h2>Admin sign in</h2>'
-        + '<p class="login-sub">Payments, reports and team settings.</p>'
+        + '<h2>' + (asAdmin ? "Admin sign in" : "Sign in") + '</h2>'
+        + '<p class="login-sub">'
+          + (asAdmin ? "Payments, reports and team settings."
+                     : "Warnitha Printshop order tracking.") + '</p>'
       + '</div>'
-      + '<label class="f"><span>Username</span>'
-        + '<input class="input" name="user" autocomplete="username" autocapitalize="none" spellcheck="false"></label>'
+      + (asAdmin
+          ? '<label class="f"><span>Username</span>'
+            + '<input class="input" name="user" autocomplete="username" '
+            + 'autocapitalize="none" spellcheck="false"></label>'
+          : '')
       + '<label class="f"><span>Password</span>'
         + '<input class="input" name="pass" type="password" autocomplete="current-password"></label>'
-      + '<p class="err" id="loginErr"'+(msg?'':' hidden')+'>'+esc(msg||"")+'</p>'
+      + '<p class="err" id="loginErr"' + (msg ? '' : ' hidden') + '>' + esc(msg || "") + '</p>'
       + '<button class="btn btn-primary" type="submit" id="loginBtn">Sign in</button>'
-      + '<button class="btn btn-ghost btn-sm" type="button" id="loginBack">Back to the job form</button>'
     + '</form>';
-  const u = $("#loginForm").user;
-  if(u) setTimeout(function(){ u.focus(); }, 60);
+  const first = $("#loginForm")[asAdmin ? "user" : "pass"];
+  if(first) setTimeout(function(){ first.focus(); }, 60);
 }
 
 function hideLogin(){
@@ -1776,28 +1755,41 @@ function hideLogin(){
 async function submitLogin(){
   const f = $("#loginForm"); if(!f) return;
   const btn = $("#loginBtn"), err = $("#loginErr");
-  const user = f.user.value.trim(), pass = f.pass.value;
-  if(!user || !pass){
-    err.textContent = "Enter both the username and the password."; err.hidden = false; return;
-  }
-  btn.disabled = true; btn.textContent = "Checking…";
-  const res = await checkAdmin(user, pass);
-  btn.disabled = false; btn.textContent = "Sign in";
-
-  if(res.reason === "insecure"){
-    err.textContent = "Sign-in needs a secure (https) connection.";
+  const pass = f.pass.value;
+  const user = f.user ? f.user.value.trim() : "";
+  if(!pass || (f.user && !user)){
+    err.textContent = "Enter " + (f.user ? "the username and password." : "the password.");
     err.hidden = false; return;
   }
+  btn.disabled = true; btn.textContent = "Signing in…";
+  let res;
+  try{
+    res = await fetch("/api/login", {
+      method: "POST", credentials: "same-origin",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(f.user ? {username: user, password: pass} : {password: pass})
+    });
+  }catch(e){
+    btn.disabled = false; btn.textContent = "Sign in";
+    err.textContent = "No connection to the server."; err.hidden = false; return;
+  }
+  btn.disabled = false; btn.textContent = "Sign in";
+
   if(!res.ok){
-    err.textContent = "Wrong username or password."; err.hidden = false;
+    let data = null; try{ data = await res.json(); }catch(e){}
+    err.textContent = (data && data.error) || "Wrong password.";
+    err.hidden = false;
     f.pass.value = ""; f.pass.focus();
     return;
   }
-  setRole("admin");
+  const data = await res.json();
+  setRole(data.role);
   hideLogin();
   history.replaceState(null, "", location.pathname + location.search);
-  go("dashboard", true);
-  toast("Signed in as admin");
+  await refreshState();
+  startPolling();
+  go(homeRoute(), true);
+  toast(data.role === "admin" ? "Signed in as admin" : "Signed in");
 }
 
 /* ===================== ANALYTICS ===================== */
@@ -2207,20 +2199,23 @@ function partnerForm(id){
   );
 }
 
-function savePartner(id){
+async function savePartner(id){
   const f = $("#partnerForm"), err = $("#formErr");
   f.querySelectorAll(".bad").forEach(function(el){ el.classList.remove("bad"); });
   if(!f.name.value.trim() && !f.company.value.trim()){
     err.textContent = "Enter a company or a contact name."; err.hidden = false;
     f.company.classList.add("bad"); return;
   }
-  const data = {
-    name:f.name.value.trim() || f.company.value.trim(),
-    company:f.company.value.trim(), phone:f.phone.value.trim(), note:f.note.value.trim()
-  };
-  if(id){ Object.assign(partnerById(id), data); toast("Details updated"); }
-  else{ data.id = uid("p"); db.partners.push(data); toast((data.company||data.name) + " saved"); }
-  save(); closeDrawer(); render();
+  const name = f.name.value.trim() || f.company.value.trim();
+  try{
+    await api("POST", "/api/partners", {
+      id: id || undefined,
+      name: name, company:f.company.value.trim(),
+      phone:f.phone.value.trim(), note:f.note.value.trim()
+    });
+  }catch(e){ err.textContent = e.message; err.hidden = false; return; }
+  toast(id ? "Details updated" : (f.company.value.trim() || name) + " saved");
+  closeDrawer(); render();
 }
 
 /* ===================== TEAM ===================== */
@@ -2302,7 +2297,6 @@ function jobDetail(id){
   const c = jobCustomer(j);
   const out = jobPartner(j);
   const bal = balance(j);
-  const due = dueState(j);
 
   const stageBtns = STAGES.map(function(s, i){
     const cur = STAGES.findIndex(function(x){ return x.id===j.status; });
@@ -2328,7 +2322,6 @@ function jobDetail(id){
         + '<div class="pipe-key">'+PHASES.map(function(p){ return '<span>'+p.label+'</span>'; }).join("")+'</div>'
         + '<div style="display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap">'
           + '<span class="chip '+chipClass(j.status)+'"><span class="dot"></span>'+esc(statusMeta(j.status).label)+'</span>'
-          + (due ? '<span class="chip '+due.cls+'">'+due.text+'</span>' : '')
           + (out ? '<span class="chip outsrc">Outsourced</span>' : '')
         + '</div>'
       + '</div>'
@@ -2385,7 +2378,6 @@ function jobDetail(id){
         + '<span class="lbl">Schedule &amp; people</span>'
         + '<dl class="dl">'
           + '<dt>Started</dt><dd class="num">'+fmtDate(j.startDate)+'</dd>'
-          + '<dt>Deadline</dt><dd class="num">'+fmtDate(j.dueDate)+'</dd>'
           + '<dt>Handed over</dt><dd class="num'+(j.handoverDate?'':' muted')+'">'+fmtDate(j.handoverDate)+'</dd>'
           + '<dt>Assigned</dt><dd>'+peopleHTML(j.assigned,true)+'</dd>'
         + '</dl>'
@@ -2424,40 +2416,18 @@ let formPicks = [];
 let custMode = "saved";          // "saved" | "walkin"
 
 function blankJob(){
-  return {id:"", code:nextCode(), name:"", type:"Other", customerId:"", customerName:"",
-          phone:"", startDate:TODAY, dueDate:"", assigned:[], status:"",
+  return {id:"", code:"", name:"", type:"Other", customerId:"", customerName:"",
+          phone:"", startDate:TODAY, assigned:[], status:"",
           total:"", advance:"", advanceDate:"", handoverDate:"",
           finalAmount:"", finalDate:"", notes:"",
           outsourced:false, outsourceId:"", outsourceName:"",
           outsourceCompany:"", outsourcePhone:"",
           outsourceCost:"", outsourcePaid:"", outsourcePaidDate:""};
 }
-/* Job numbers are the date plus a counter that restarts every morning:
-   YYMMDD + 001, 002, 003 … So the third job booked in on 3 Sep 2026 is
-   260903003, and the first one the next day is 260904001. */
+/* The date stamp the server uses to number the job — sent with a new job so
+   the number matches the shop's day, not the server's timezone. */
 function dateStamp(iso){
   return iso.slice(2,4) + iso.slice(5,7) + iso.slice(8,10);   // YYYY-MM-DD -> YYMMDD
-}
-function nextCode(){
-  refreshToday();               // a phone left open overnight must roll over
-  const stamp = dateStamp(TODAY);
-  if(db.codeDate !== stamp){ db.codeDate = stamp; db.nextJobNo = 1; }
-
-  // The counter alone isn't enough: a restored backup, or data edited by hand,
-  // could rewind it and hand out a number twice. So the highest number already
-  // used today is the floor — a job number is never reissued.
-  let highest = 0;
-  db.jobs.forEach(function(j){
-    const c = String(j.code || "");
-    if(c.length >= 9 && c.slice(0,6) === stamp){
-      const n = parseInt(c.slice(6), 10);
-      if(n > highest) highest = n;
-    }
-  });
-  db.nextJobNo = Math.max(db.nextJobNo, highest + 1);
-
-  // Past 999 in one day the number simply grows a digit rather than repeating.
-  return stamp + String(db.nextJobNo).padStart(3,"0");
 }
 
 /* The form body is shared by the drawer and the standalone New Job page, so it
@@ -2535,12 +2505,9 @@ function jobFormBody(j, editing){
       + '<span class="lbl">Schedule</span>'
       + '<div class="grid2">'
         + '<label class="f"><span>Start date</span><input class="input num" type="date" name="startDate" value="'+esc(j.startDate)+'"></label>'
-        + '<label class="f"><span>Deadline</span><input class="input num" type="date" name="dueDate" value="'+esc(j.dueDate)+'"></label>'
+        + '<label class="f"><span>Handover date <em>— when it goes out</em></span><input class="input num" type="date" name="handoverDate" value="'+esc(j.handoverDate)+'"></label>'
       + '</div>'
-      + '<div class="grid2">'
-        + '<label class="f"><span>Current stage <em>— optional</em></span><select class="select" name="status">'+statusOpts+'</select></label>'
-        + '<label class="f"><span>Handover date <em>— if done</em></span><input class="input num" type="date" name="handoverDate" value="'+esc(j.handoverDate)+'"></label>'
-      + '</div>'
+      + '<label class="f"><span>Current stage <em>— optional</em></span><select class="select" name="status">'+statusOpts+'</select></label>'
       + '<p class="hint">Leave the stage unset if the job is only booked in. It can be set from the job at any time.</p>'
     + '</div>'
 
@@ -2668,7 +2635,7 @@ function jobForm(id){
   openDrawer(
     '<div class="drawer-head">'
       + '<div style="min-width:0"><h2>'+(editing?"Edit job":"New job")+'</h2>'
-      + '<span class="jobcode">'+esc(j.code)+'</span></div>'
+      + '<span class="jobcode">'+(editing?esc(j.code):"Number given when you save")+'</span></div>'
       + '<button class="btn btn-ghost btn-sm" data-close aria-label="Close">'+ICONS.close+'</button>'
     + '</div>'
     + '<form class="drawer-body" id="jobForm" novalidate>' + jobFormBody(j, editing) + '</form>'
@@ -2693,7 +2660,7 @@ function renderNewJobPage(){
     '<section class="card formpage">'
       + '<div class="card-head">'
         + '<span class="lbl">Job number</span>'
-        + '<span class="jobcode" style="margin-left:0">'+esc(j.code)+'</span>'
+        + '<span class="jobcode" style="margin-left:0">Given when you save</span>'
       + '</div>'
       + '<form class="formpage-body" id="jobForm" novalidate>' + jobFormBody(j, false) + '</form>'
       + '<div class="formpage-foot">'
@@ -2817,9 +2784,9 @@ async function saveJob(id, stayOnPage){
   // Only demand an assignee once there is somebody to assign.
   const anyStaff = db.staff.some(function(s){ return s.active; });
   if(anyStaff && !formPicks.length){ problems.push("Assign at least one person."); }
-  if(f.startDate.value && f.dueDate.value && f.dueDate.value < f.startDate.value){
-    problems.push("The deadline is before the start date.");
-    f.dueDate.classList.add("bad");
+  if(f.startDate.value && f.handoverDate.value && f.handoverDate.value < f.startDate.value){
+    problems.push("The handover date is before the start date.");
+    f.handoverDate.classList.add("bad");
   }
   // Company and number are optional for an outsourcer, but a name is not —
   // otherwise the job says it went out and can't say where.
@@ -2838,75 +2805,61 @@ async function saveJob(id, stayOnPage){
 
   // When a control isn't on the form — locked for staff, or admin-only — the
   // stored value must survive the save rather than being read back as blank.
+  // Fields the form isn't showing (locked for staff, or admin-only) simply
+  // aren't sent; the server keeps whatever it already holds.
   const prev = id ? db.jobs.find(function(x){ return x.id===id; }) : null;
 
   const data = {
     name:f.name.value.trim(), type:f.type.value,
-    startDate:f.startDate.value, dueDate:f.dueDate.value, assigned:formPicks.slice(),
-    status:f.status.value, handoverDate:f.handoverDate.value, notes:f.notes.value.trim(),
-
-    total:       f.total       ? n(f.total.value)       : (prev ? prev.total : 0),
-    advance:     f.advance     ? n(f.advance.value)     : (prev ? prev.advance : 0),
-    advanceDate: f.advanceDate ? f.advanceDate.value    : (prev ? prev.advanceDate : ""),
-    finalAmount: f.finalAmount ? n(f.finalAmount.value) : (prev ? prev.finalAmount : 0),
-    finalDate:   f.finalDate   ? f.finalDate.value      : (prev ? prev.finalDate : ""),
-
-    outsourceCost:     f.outsourceCost     ? n(f.outsourceCost.value)  : (prev ? prev.outsourceCost : 0),
-    outsourcePaid:     f.outsourcePaid     ? n(f.outsourcePaid.value)  : (prev ? prev.outsourcePaid : 0),
-    outsourcePaidDate: f.outsourcePaidDate ? f.outsourcePaidDate.value : (prev ? prev.outsourcePaidDate : "")
+    startDate:f.startDate.value, handoverDate:f.handoverDate.value,
+    assigned:formPicks.slice(), status:f.status.value, notes:f.notes.value.trim()
   };
+  if(f.total)       data.total       = n(f.total.value);
+  if(f.advance)     data.advance     = n(f.advance.value);
+  if(f.advanceDate) data.advanceDate = f.advanceDate.value;
+  if(f.finalAmount) data.finalAmount = n(f.finalAmount.value);
+  if(f.finalDate)   data.finalDate   = f.finalDate.value;
 
   if(custMode === "walkin"){
     data.customerName = f.customerName.value.trim();
     data.phone        = f.walkPhone.value.trim();
     data.customerId   = "";
-    if(f.saveCustomer.checked){
-      // Promote them to a real customer and point the job at that record, so
-      // from here on it behaves exactly like any other saved customer.
-      const c = {id:uid("c"), name:data.customerName, company:"", phone:data.phone, email:"", note:""};
-      db.customers.push(c);
-      data.customerId   = c.id;
-      data.customerName = "";
-      toast(c.name + " saved to your customers");
-    }
   }else{
     data.customerId   = f.customerId.value;
     data.customerName = "";
     data.phone        = f.phone.value.trim();
   }
 
-  // Analytics counts money on the date it was received, so an amount entered
-  // without a date would silently never appear in any report. Assume today.
-  if(data.advance     > 0 && !data.advanceDate)       data.advanceDate       = TODAY;
-  if(data.finalAmount > 0 && !data.finalDate)         data.finalDate         = TODAY;
-  if(data.outsourcePaid > 0 && !data.outsourcePaidDate) data.outsourcePaidDate = TODAY;
-  // And an amount cleared back to zero shouldn't keep a stale date.
-  if(!data.advance)       data.advanceDate       = "";
-  if(!data.finalAmount)   data.finalDate         = "";
-  if(!data.outsourcePaid) data.outsourcePaidDate = "";
-
   data.outsourced = f.outsourced.checked;
   if(!data.outsourced){
     data.outsourceId = ""; data.outsourceName = "";
     data.outsourceCompany = ""; data.outsourcePhone = "";
-    data.outsourceCost = 0; data.outsourcePaid = 0; data.outsourcePaidDate = "";
-  }else if(f.outsourceId.value){
-    data.outsourceId = f.outsourceId.value;
-    data.outsourceName = ""; data.outsourceCompany = ""; data.outsourcePhone = "";
+    if(f.outsourceCost) data.outsourceCost = 0;
+    if(f.outsourcePaid){ data.outsourcePaid = 0; data.outsourcePaidDate = ""; }
   }else{
-    data.outsourceName    = f.outsourceName.value.trim();
-    data.outsourceCompany = f.outsourceCompany.value.trim();
-    data.outsourcePhone   = f.outsourcePhone.value.trim();
-    data.outsourceId      = "";
-    if(f.savePartner.checked){
-      const p = {id:uid("p"), name:data.outsourceName, company:data.outsourceCompany,
-                 phone:data.outsourcePhone, note:""};
-      db.partners.push(p);
-      data.outsourceId = p.id;
+    if(f.outsourceCost)     data.outsourceCost     = n(f.outsourceCost.value);
+    if(f.outsourcePaid)     data.outsourcePaid     = n(f.outsourcePaid.value);
+    if(f.outsourcePaidDate) data.outsourcePaidDate = f.outsourcePaidDate.value;
+
+    if(f.outsourceId.value){
+      data.outsourceId = f.outsourceId.value;
       data.outsourceName = ""; data.outsourceCompany = ""; data.outsourcePhone = "";
-      toast((p.company || p.name) + " saved to your outsourcing list");
+    }else{
+      data.outsourceName    = f.outsourceName.value.trim();
+      data.outsourceCompany = f.outsourceCompany.value.trim();
+      data.outsourcePhone   = f.outsourcePhone.value.trim();
+      data.outsourceId      = "";
     }
   }
+
+  // Money is counted on the day it was received, so an amount with no date
+  // would never reach a report. Assume today; clear the date if the amount goes.
+  if(data.advance     > 0 && !data.advanceDate)         data.advanceDate       = TODAY;
+  if(data.finalAmount > 0 && !data.finalDate)           data.finalDate         = TODAY;
+  if(data.outsourcePaid > 0 && !data.outsourcePaidDate) data.outsourcePaidDate = TODAY;
+  if(data.advance === 0)       data.advanceDate = "";
+  if(data.finalAmount === 0)   data.finalDate = "";
+  if(data.outsourcePaid === 0) data.outsourcePaidDate = "";
 
   const cust = data.customerId ? (custById(data.customerId)||{}).name
                                : (data.customerName || "Walk-in customer");
@@ -2916,32 +2869,52 @@ async function saveJob(id, stayOnPage){
     body:  '<p>'+esc(data.name)+'</p>'
       + '<dl>'
         + '<dt>Customer</dt><dd>'+esc(cust)+'</dd>'
-        + '<dt>Deadline</dt><dd>'+fmtDate(data.dueDate)+'</dd>'
-        + (canSetPayments(!!id)
-            ? '<dt>Job total</dt><dd>'+money(data.total)+'</dd>'
-              + '<dt>Advance</dt><dd>'+(data.advance?money(data.advance):"—")+'</dd>'
-            : '')
+        + '<dt>Handover</dt><dd>'+fmtDate(data.handoverDate)+'</dd>'
+        + (f.total ? '<dt>Job total</dt><dd>'+money(data.total)+'</dd>'
+                   + '<dt>Advance</dt><dd>'+(data.advance?money(data.advance):"—")+'</dd>' : '')
         + (data.outsourced ? '<dt>Outsourced</dt><dd>Yes</dd>' : '')
       + '</dl>'
-      + (canSetPayments(!!id) && !isAdmin()
+      + (f.total && !isAdmin()
           ? '<p style="margin-top:10px">Once saved, only the admin can change these amounts.</p>' : '')
   });
   if(!ok) return;
 
-  let job;
-  if(id){
-    job = db.jobs.find(function(x){ return x.id===id; });
-    Object.assign(job, data);
-    toast("Job updated");
-  }else{
-    data.id = uid("j");
-    data.code = nextCode();
-    db.nextJobNo++;
-    db.jobs.unshift(data);
-    job = data;
-    if(!stayOnPage) toast("Job " + data.code + " added");
+  const savingBtn = document.querySelector("[data-save-job]");
+  if(savingBtn){ savingBtn.disabled = true; savingBtn.textContent = "Saving…"; }
+
+  let job = null;
+  try{
+    if(id){
+      await api("PATCH", "/api/jobs/" + encodeURIComponent(id), data);
+      job = db.jobs.find(function(x){ return x.id===id; });
+      toast("Job updated");
+    }else{
+      // A walk-in the shop wants to keep is saved as a customer first, so the
+      // job can point at a real record.
+      if(custMode === "walkin" && f.saveCustomer && f.saveCustomer.checked){
+        const made = await api("POST", "/api/customers",
+          {name:data.customerName, company:"", phone:data.phone, email:"", note:""});
+        data.customerId = made.id; data.customerName = "";
+        toast((made.id ? cust : cust) + " saved to your customers");
+      }
+      if(data.outsourced && !data.outsourceId && f.savePartner && f.savePartner.checked){
+        const made = await api("POST", "/api/partners",
+          {name:data.outsourceName, company:data.outsourceCompany, phone:data.outsourcePhone, note:""});
+        data.outsourceId = made.id;
+        data.outsourceName = ""; data.outsourceCompany = ""; data.outsourcePhone = "";
+      }
+      // The server hands out the job number, so two devices booking at the same
+      // moment can never be given the same one.
+      data.dayStamp = dateStamp(TODAY);
+      const made = await api("POST", "/api/jobs", data);
+      job = db.jobs.find(function(x){ return x.id === made.id; });
+      if(!stayOnPage) toast("Job " + (made.code || "") + " added");
+    }
+  }catch(e){
+    if(savingBtn){ savingBtn.disabled = false; savingBtn.textContent = id ? "Save changes" : "Add job"; }
+    err.textContent = e.message; err.hidden = false;
+    return;
   }
-  save();
 
   if(stayOnPage){ renderNav(); newJobSaved(job); window.scrollTo(0,0); return; }
   closeDrawer(); render();
@@ -2987,20 +2960,22 @@ function customerForm(id){
   );
 }
 
-function saveCustomer(id){
+async function saveCustomer(id){
   const f = $("#custForm"), err = $("#formErr");
   f.querySelectorAll(".bad").forEach(function(el){ el.classList.remove("bad"); });
   if(!f.name.value.trim()){
     err.textContent = "Enter the contact person's name."; err.hidden = false;
     f.name.classList.add("bad"); return;
   }
-  const data = {
-    name:f.name.value.trim(), company:f.company.value.trim(), phone:f.phone.value.trim(),
-    email:f.email.value.trim(), note:f.note.value.trim()
-  };
-  if(id){ Object.assign(custById(id), data); toast("Customer updated"); }
-  else{ data.id = uid("c"); db.customers.push(data); toast(data.name + " saved"); }
-  save(); closeDrawer(); render();
+  try{
+    await api("POST", "/api/customers", {
+      id: id || undefined,
+      name:f.name.value.trim(), company:f.company.value.trim(), phone:f.phone.value.trim(),
+      email:f.email.value.trim(), note:f.note.value.trim()
+    });
+  }catch(e){ err.textContent = e.message; err.hidden = false; return; }
+  toast(id ? "Customer updated" : f.name.value.trim() + " saved");
+  closeDrawer(); render();
 }
 
 function staffForm(id){
@@ -3043,17 +3018,22 @@ function staffForm(id){
   );
 }
 
-function saveStaff(id){
+async function saveStaff(id){
   const f = $("#staffForm"), err = $("#formErr");
   f.querySelectorAll(".bad").forEach(function(el){ el.classList.remove("bad"); });
   if(!f.name.value.trim()){
     err.textContent = "Enter the person's name."; err.hidden = false;
     f.name.classList.add("bad"); return;
   }
-  const data = {name:f.name.value.trim(), role:f.role.value.trim(), phone:f.phone.value.trim(), active:f.active.value==="1"};
-  if(id){ Object.assign(staffById(id), data); toast("Details updated"); }
-  else{ data.id = uid("s"); db.staff.push(data); toast(data.name + " added to the team"); }
-  save(); closeDrawer(); render();
+  try{
+    await api("POST", "/api/staff", {
+      id: id || undefined,
+      name:f.name.value.trim(), role:f.role.value.trim(),
+      phone:f.phone.value.trim(), active:f.active.value==="1"
+    });
+  }catch(e){ err.textContent = e.message; err.hidden = false; return; }
+  toast(id ? "Details updated" : f.name.value.trim() + " added to the team");
+  closeDrawer(); render();
 }
 
 /* ===================== RENDER ===================== */
@@ -3223,8 +3203,9 @@ document.addEventListener("click", function(e){
   const delPartner = t.closest("[data-delete-partner]");
   if(delPartner){
     const id = delPartner.getAttribute("data-delete-partner");
-    db.partners = db.partners.filter(function(x){ return x.id!==id; });
-    save(); closeDrawer(); render(); toast("Removed from your outsourcing list");
+    api("DELETE", "/api/partners/" + encodeURIComponent(id)).then(function(){
+      closeDrawer(); render(); toast("Removed from your outsourcing list");
+    }).catch(function(e){ toast(e.message); });
     return;
   }
 
@@ -3232,26 +3213,34 @@ document.addEventListener("click", function(e){
   if(delJob){
     const id = delJob.getAttribute("data-delete-job");
     const j = db.jobs.find(function(x){ return x.id===id; });
-    if(confirm('Delete "'+j.name+'"? This cannot be undone.')){
-      db.jobs = db.jobs.filter(function(x){ return x.id!==id; });
-      save(); closeDrawer(); render(); toast("Job deleted");
-    }
+    askConfirm({
+      title: "Delete this job?", danger: true,
+      ok: "Yes, delete it", cancel: "Keep it",
+      body: '<p>'+esc(j ? j.name : "")+'</p><p style="margin-top:8px">This cannot be undone.</p>'
+    }).then(async function(ok){
+      if(!ok) return;
+      try{ await api("DELETE", "/api/jobs/" + encodeURIComponent(id)); }
+      catch(e){ toast(e.message); return; }
+      closeDrawer(); render(); toast("Job deleted");
+    });
     return;
   }
 
   const delCust = t.closest("[data-delete-customer]");
   if(delCust){
     const id = delCust.getAttribute("data-delete-customer");
-    db.customers = db.customers.filter(function(x){ return x.id!==id; });
-    save(); closeDrawer(); render(); toast("Customer removed");
+    api("DELETE", "/api/customers/" + encodeURIComponent(id)).then(function(){
+      closeDrawer(); render(); toast("Customer removed");
+    }).catch(function(e){ toast(e.message); });
     return;
   }
 
   const delStaff = t.closest("[data-delete-staff]");
   if(delStaff){
     const id = delStaff.getAttribute("data-delete-staff");
-    db.staff = db.staff.filter(function(x){ return x.id!==id; });
-    save(); closeDrawer(); render(); toast("Person removed");
+    api("DELETE", "/api/staff/" + encodeURIComponent(id)).then(function(){
+      closeDrawer(); render(); toast("Person removed");
+    }).catch(function(e){ toast(e.message); });
     return;
   }
 
@@ -3262,15 +3251,16 @@ document.addEventListener("click", function(e){
     const jobId = id ? id.getAttribute("data-edit-job") : null;
     if(jobId){
       const j = db.jobs.find(function(x){ return x.id===jobId; });
-      j.status = stage.getAttribute("data-stage");
-      if(j.status==="delivered" && !j.handoverDate) j.handoverDate = TODAY;
-      save(); jobDetail(jobId); renderNav();
-      if(route!=="team" && route!=="customers"){
+      const to = stage.getAttribute("data-stage");
+      const patch = {status: to};
+      if(to === "delivered" && j && !j.handoverDate) patch.handoverDate = TODAY;
+      api("PATCH", "/api/jobs/" + encodeURIComponent(jobId), patch).then(function(){
+        jobDetail(jobId); renderNav();
         if(route==="dashboard") renderDashboard();
         else if(route==="jobs") renderJobs();
         else if(route==="payments") renderPayments();
-      }
-      toast("Moved to " + statusMeta(j.status).label);
+        toast("Moved to " + statusMeta(to).label);
+      }).catch(function(e){ toast(e.message); });
     }
     return;
   }
@@ -3292,17 +3282,13 @@ document.addEventListener("click", function(e){
   if(t.id === "scrim"){ closeDrawer(); return; }
 
   if(t.closest(".js-leaveadmin")){
-    setRole("staff");
     closeDrawer(); toggleMore(false);
-    go(homeRoute(), true);
-    toast("Signed out of admin");
-    return;
-  }
-
-  if(t.id === "loginBack"){
-    hideLogin();
-    history.replaceState(null, "", location.pathname + location.search);
-    go(homeRoute(), true);
+    api("POST", "/api/logout").catch(function(){}).then(function(){
+      setRole(null);
+      db = {staff:[], customers:[], partners:[], jobs:[], version:0};
+      history.replaceState(null, "", location.pathname + location.search);
+      renderSignIn("");
+    });
     return;
   }
 
@@ -3313,15 +3299,17 @@ document.addEventListener("click", function(e){
       ok: "Yes, erase everything",
       cancel: "Keep my data",
       body: '<p>This deletes every job, customer, outsourcing place and team member '
-        + 'on this device.</p><dl>'
+        + 'from the system, on every device.</p><dl>'
         + '<dt>Jobs</dt><dd>'+db.jobs.length+'</dd>'
         + '<dt>Customers</dt><dd>'+db.customers.length+'</dd>'
         + '<dt>Outsourcing places</dt><dd>'+(db.partners||[]).length+'</dd>'
         + '<dt>Team members</dt><dd>'+db.staff.length+'</dd>'
         + '</dl><p style="margin-top:10px">It cannot be undone.</p>'
-    }).then(function(ok){
+    }).then(async function(ok){
       if(!ok) return;
-      db = seed(); save(); closeDrawer(); filter={q:"",tab:"active"};
+      try{ await api("POST", "/api/wipe"); }
+      catch(e){ toast(e.message); return; }
+      closeDrawer(); filter={q:"",tab:"active"};
       go(homeRoute(), true);
       toast("Everything erased");
     });
@@ -3331,29 +3319,18 @@ document.addEventListener("click", function(e){
 
 /* Shop phones sit open for days. When one is picked up again, roll the date
    over so overdue flags and the day's job numbers are current. */
-document.addEventListener("visibilitychange", function(){
-  if(document.hidden) return;
-  if(!refreshToday()) return;
-  if(loginShown || drawerOpen || route === "new") return;   // don't disturb a form
-  render();
-});
-
-/* Two tabs (or two windows) on the same device share one store, but each holds
-   its own copy in memory. Without this, an admin leaving the dashboard open
-   never sees what the counter tab just booked in. */
-window.addEventListener("storage", function(e){
-  if(e.key !== KEY || e.newValue === null) return;
-  let incoming;
-  try{ incoming = migrate(JSON.parse(e.newValue)); }catch(err){ return; }
-  db = incoming;
-
-  if(loginShown) return;
-  renderNav();                                  // counts are always safe to refresh
-  // Never redraw over a form somebody is part-way through typing into.
-  const busy = drawerOpen || route === "new";
-  if(busy) return;
-  render();
-  toast("Updated with changes from another tab");
+document.addEventListener("visibilitychange", async function(){
+  if(document.hidden || !role) return;
+  const rolled = refreshToday();
+  try{
+    const r = await api("GET", "/api/version");
+    if(r && r.version !== db.version){
+      await refreshState();
+      renderNav();
+      if(!loginShown && !drawerOpen && route !== "new"){ render(); return; }
+    }
+  }catch(e){ return; }
+  if(rolled && !loginShown && !drawerOpen && route !== "new") render();
 });
 
 window.addEventListener("hashchange", function(){
@@ -3361,15 +3338,15 @@ window.addEventListener("hashchange", function(){
   // hash without reloading — the sign-in has to be opened from here too.
   if(wantsAdmin()){
     toggleMore(false); closeDrawer();
-    if(isAdmin()){
+    if(role){
       history.replaceState(null, "", location.pathname + location.search);
-      go("dashboard", true);
+      go(homeRoute(), true);
     }else{
-      renderLogin("");
+      renderSignIn("");
     }
     return;
   }
-  if(loginShown) hideLogin();
+  if(loginShown && role) hideLogin();
   route = routeFromHash();
   toggleMore(false); closeDrawer(); render(); window.scrollTo(0,0);
 });
@@ -3497,22 +3474,32 @@ function bootFailed(err){
     + '</div>';
 }
 
-try{
-  loadRole();
-  document.body.setAttribute("data-role-mode", role);
-  load();
-
-  if(wantsAdmin() && !isAdmin()){
-    render();                     // build the app underneath, then cover it
-    renderLogin("");
-  }else{
-    if(wantsAdmin()) history.replaceState(null, "", location.pathname + location.search);
-    route = routeFromHash();
-    go(route, true);
+/* Ask the server who we are, then either show the app or the sign-in. */
+async function boot(){
+  let me = null;
+  try{
+    const res = await fetch("/api/me", {credentials: "same-origin"});
+    me = res.ok ? await res.json() : null;
+  }catch(e){
+    bootFailed(new Error("Could not reach the server. Check the connection and reload."));
+    return;
   }
-}catch(err){
-  bootFailed(err);
+
+  if(!me || !me.role){
+    setRole(null);
+    renderSignIn("");
+    return;
+  }
+
+  setRole(me.role);
+  await refreshState();
+  if(wantsAdmin()) history.replaceState(null, "", location.pathname + location.search);
+  route = routeFromHash();
+  go(route, true);
+  startPolling();
 }
+
+boot().catch(bootFailed);
 
 })();
 </script>

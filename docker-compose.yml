@@ -1,16 +1,46 @@
-# For running the site locally, and as an alternative to Dokploy's
-# "Dockerfile" application type if you prefer deploying via Compose.
+# Deploying on Dokploy
+# -------------------
+# Create an application, choose Compose, point it at this repository, then set
+# the four variables below under Environment. Add the domain against the "app"
+# service on port 3000.
 #
-#   docker compose up --build      →  http://localhost:8080
-#
-# Deploying through Dokploy as an Application (recommended) does not use this
-# file — Dokploy builds the Dockerfile directly and routes traffic to port 80.
+# Generate the session secret once and keep it: changing it signs everyone out.
+#   openssl rand -hex 32
 
 services:
-  presstrack:
-    build: .
-    image: presstrack:latest
-    container_name: presstrack
+  db:
+    image: postgres:16-alpine
     restart: unless-stopped
-    ports:
-      - "8080:80"
+    environment:
+      POSTGRES_USER: warnitha
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+      POSTGRES_DB: warnitha
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U warnitha -d warnitha"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://warnitha:${DB_PASSWORD}@db:5432/warnitha
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET}
+      STAFF_PASSWORD: ${STAFF_PASSWORD:?set STAFF_PASSWORD}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-Admin}
+      PORT: "3000"
+    expose:
+      - "3000"
+    # Uncomment to reach it directly while testing without a domain:
+    # ports:
+    #   - "3000:3000"
+
+volumes:
+  db-data:
