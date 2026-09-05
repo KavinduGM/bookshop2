@@ -107,7 +107,22 @@ admin:
 Jobs can be booked in from minute one; if nobody has been added to the team yet,
 jobs simply save with no one assigned and can be assigned later.
 
-Job numbers run `JOB-<year>-0001` upward and restart each January.
+### Job numbers
+
+Job numbers are the date followed by a counter that restarts every morning:
+
+```
+260903001   ← 3 Sep 2026, first job of the day
+260903002   ← 3 Sep 2026, second job
+260904001   ← 4 Sep 2026, back to 1
+```
+
+The format is `YYMMDD` + `001`, `002`, `003` … Past 999 in a single day the
+number simply grows a digit rather than repeating.
+
+A number is never reissued: the counter is checked against the highest number
+already used that day, so restoring a backup or editing the stored data by hand
+cannot hand out the same number twice.
 
 **Team → Erase all data** wipes everything on the device, for clearing out
 practice entries after training.

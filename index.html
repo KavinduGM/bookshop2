@@ -875,7 +875,7 @@ function seed(){
     partners:  [],
     jobs:      [],
     nextJobNo: 1,
-    codeYear:  TODAY.slice(0,4)
+    codeDate:  dateStamp(TODAY)
   };
 }
 
@@ -937,6 +937,14 @@ function load(){
 /* Bring data saved by an earlier version up to the current shape. */
 function migrate(d){
   if(!d.partners) d.partners = [];
+  // Job numbers used to run yearly (JOB-2026-0001) and now run daily
+  // (260903001). Codes already issued are left alone — they may be written on
+  // paper dockets — and only the counter moves to the new scheme.
+  if(d.codeDate === undefined){
+    delete d.codeYear;
+    d.codeDate  = dateStamp(TODAY);
+    d.nextJobNo = 1;
+  }
   (d.jobs || []).forEach(function(j){
     if(RETIRED_STAGES[j.status]) j.status = RETIRED_STAGES[j.status];
     if(j.outsourced === undefined) j.outsourced = false;
@@ -2264,11 +2272,32 @@ function blankJob(){
           outsourceCompany:"", outsourcePhone:"",
           outsourceCost:"", outsourcePaid:"", outsourcePaidDate:""};
 }
-/* Job numbers restart each year: JOB-2027-0001 follows JOB-2026-0184. */
+/* Job numbers are the date plus a counter that restarts every morning:
+   YYMMDD + 001, 002, 003 … So the third job booked in on 3 Sep 2026 is
+   260903003, and the first one the next day is 260904001. */
+function dateStamp(iso){
+  return iso.slice(2,4) + iso.slice(5,7) + iso.slice(8,10);   // YYYY-MM-DD -> YYMMDD
+}
 function nextCode(){
-  const year = TODAY.slice(0,4);
-  if(db.codeYear !== year){ db.codeYear = year; db.nextJobNo = 1; }
-  return "JOB-" + year + "-" + String(db.nextJobNo).padStart(4,"0");
+  refreshToday();               // a phone left open overnight must roll over
+  const stamp = dateStamp(TODAY);
+  if(db.codeDate !== stamp){ db.codeDate = stamp; db.nextJobNo = 1; }
+
+  // The counter alone isn't enough: a restored backup, or data edited by hand,
+  // could rewind it and hand out a number twice. So the highest number already
+  // used today is the floor — a job number is never reissued.
+  let highest = 0;
+  db.jobs.forEach(function(j){
+    const c = String(j.code || "");
+    if(c.length >= 9 && c.slice(0,6) === stamp){
+      const n = parseInt(c.slice(6), 10);
+      if(n > highest) highest = n;
+    }
+  });
+  db.nextJobNo = Math.max(db.nextJobNo, highest + 1);
+
+  // Past 999 in one day the number simply grows a digit rather than repeating.
+  return stamp + String(db.nextJobNo).padStart(3,"0");
 }
 
 /* The form body is shared by the drawer and the standalone New Job page, so it
@@ -3134,6 +3163,15 @@ document.addEventListener("click", function(e){
     });
     return;
   }
+});
+
+/* Shop phones sit open for days. When one is picked up again, roll the date
+   over so overdue flags and the day's job numbers are current. */
+document.addEventListener("visibilitychange", function(){
+  if(document.hidden) return;
+  if(!refreshToday()) return;
+  if(loginShown || drawerOpen || route === "new") return;   // don't disturb a form
+  render();
 });
 
 /* Two tabs (or two windows) on the same device share one store, but each holds
