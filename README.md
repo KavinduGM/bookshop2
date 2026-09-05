@@ -193,6 +193,23 @@ customer pays and what the outsourcer charges, so the job also records:
 
 Payments shows what is still owed out and the total commission earned.
 
+**Job card** — an A6 card printed for the floor, so the work goes to the
+designer with its details attached. **Print card** appears on every job, and
+straight after a job is saved.
+
+It carries the job number (large, at the top), the customer and their number,
+the job name and type, the start / deadline / handover dates, who it is assigned
+to, the remarks, and — when relevant — who it has been outsourced to. There are
+signature lines for *given by* and *received by*.
+
+It deliberately carries **no prices**. Pricing is admin-only, and a card that
+circulates on the shop floor is the wrong place for it.
+
+Printing uses the browser's own print dialog (`@page size: A6`), so it works
+from an Android phone as well as a PC — and "Save as PDF" is available there too
+if a card needs to be sent rather than printed. A long remark simply flows onto
+a second page rather than being cut off.
+
 **Payments** — everything still owed, sorted by amount, flagging jobs already
 handed over with money outstanding.
 
