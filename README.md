@@ -28,7 +28,11 @@ Both roles sign in, and a session lasts 30 days on that device.
 | Who | Address | Signs in with | Lands on |
 | --- | --- | --- | --- |
 | Shop staff | `https://your-subdomain/` | The shop password | The New Job form |
-| Admin | `https://your-subdomain/#admin` | Username and password | The Dashboard |
+| Admin | `https://your-subdomain/admin` | Username and password | The Dashboard |
+
+The admin door answers to both `/admin` and `/#admin`. Signing in tidies the
+address back to `/`, so the admin link never lingers in the browser history of a
+shared phone.
 
 The plain address asks only for a password and shows no sign that an admin area
 exists. **Leave admin** in the sidebar signs out.
@@ -116,9 +120,9 @@ It then opens like an app: tap the icon, the job form is already there. The
 
 ## What's in it
 
-**Jobs** — job name, customer, contact number, start date, deadline, assigned
-staff, total cost, advance paid and its date, final payment and its date,
-pending balance, handover date, current stage, and notes.
+**Jobs** — job name, type of work, customer, contact number, start date,
+handover date, assigned staff, total cost, advance paid and its date, final
+payment and its date, pending balance, current stage, and notes.
 
 **Print stages**, grouped into four phases. Phases are ordered, so they use a
 single blue ramp — the deeper the blue, the further along the work is:
@@ -171,8 +175,8 @@ designer with its details attached. **Print card** appears on every job, and
 straight after a job is saved.
 
 It carries the job number (large, at the top), the customer and their number,
-the job name and type, the start / deadline / handover dates, who it is assigned
-to, the remarks, and — when relevant — who it has been outsourced to. There are
+the job name and type, the start and handover dates, who it is assigned to, the
+remarks, and — when relevant — who it has been outsourced to. There are
 signature lines for *given by* and *received by*.
 
 It deliberately carries **no prices**. Pricing is admin-only, and a card that

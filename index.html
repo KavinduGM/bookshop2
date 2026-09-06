@@ -964,8 +964,17 @@ let filter = {q:"", tab:"active"};
 let searchTimer = null;
 let offline = false;
 
+/* The admin door answers to both /#admin and the plainer /admin, because the
+   second is what people naturally type and bookmark. */
 function wantsAdmin(){
-  return (location.hash || "").replace(/^#\/?/, "").toLowerCase() === "admin";
+  const h = (location.hash || "").replace(/^#\/?/, "").toLowerCase();
+  if(h === "admin") return true;
+  return /\/admin\/?$/.test(location.pathname.toLowerCase());
+}
+
+/* The address without the /admin part, so signing in leaves a clean URL. */
+function basePath(){
+  return location.pathname.replace(/\/admin\/?$/i, "/") || "/";
 }
 function setRole(r){
   role = r;
@@ -1785,7 +1794,7 @@ async function submitLogin(){
   const data = await res.json();
   setRole(data.role);
   hideLogin();
-  history.replaceState(null, "", location.pathname + location.search);
+  history.replaceState(null, "", basePath() + location.search);
   await refreshState();
   startPolling();
   go(homeRoute(), true);
@@ -3286,7 +3295,7 @@ document.addEventListener("click", function(e){
     api("POST", "/api/logout").catch(function(){}).then(function(){
       setRole(null);
       db = {staff:[], customers:[], partners:[], jobs:[], version:0};
-      history.replaceState(null, "", location.pathname + location.search);
+      history.replaceState(null, "", basePath() + location.search);
       renderSignIn("");
     });
     return;
@@ -3339,7 +3348,7 @@ window.addEventListener("hashchange", function(){
   if(wantsAdmin()){
     toggleMore(false); closeDrawer();
     if(role){
-      history.replaceState(null, "", location.pathname + location.search);
+      history.replaceState(null, "", basePath() + location.search);
       go(homeRoute(), true);
     }else{
       renderSignIn("");
@@ -3493,7 +3502,7 @@ async function boot(){
 
   setRole(me.role);
   await refreshState();
-  if(wantsAdmin()) history.replaceState(null, "", location.pathname + location.search);
+  if(wantsAdmin()) history.replaceState(null, "", basePath() + location.search);
   route = routeFromHash();
   go(route, true);
   startPolling();

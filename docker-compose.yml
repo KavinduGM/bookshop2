@@ -1,8 +1,8 @@
 # Deploying on Dokploy
 # -------------------
 # Create an application, choose Compose, point it at this repository, then set
-# the four variables below under Environment. Add the domain against the "app"
-# service on port 3000.
+# the variables listed in .env.example under Environment. Add the domain against
+# the "app" service on port 3000.
 #
 # Generate the session secret once and keep it: changing it signs everyone out.
 #   openssl rand -hex 32
