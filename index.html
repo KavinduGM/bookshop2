@@ -198,8 +198,7 @@ button{cursor:pointer; background:none; border:none; padding:0}
 }
 .whoami-badge.is-admin{background:var(--accent-soft); color:var(--accent); border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
 .whoami-note{font-size:11px; color:var(--faint); line-height:1.45}
-.js-leaveadmin{justify-content:center}
-.js-leaveadmin[hidden]{display:none}
+.js-signout{justify-content:center}
 
 .menubtn{
   display:none; align-items:center; justify-content:center;
@@ -684,6 +683,11 @@ body[data-login] .app{display:none}
     gap:11px; padding:11px 12px; font-size:14px; min-height:auto; border-radius:var(--r);
   }
   .moresheet .nav-item > span{width:auto; flex:1}
+  .sheet-signout{
+    margin-top:6px; padding-top:12px;
+    border-top:1px solid var(--line-2); border-radius:0 0 var(--r) var(--r);
+    color:var(--muted);
+  }
   .moresheet .nav-item > .nav-count{display:block}
   #moreScrim{z-index:34}
 
@@ -833,7 +837,7 @@ body[data-login] .app{display:none}
         <span class="whoami-badge js-rolebadge">Staff</span>
         <span class="whoami-note js-rolenote">Jobs, customers and outsourcing</span>
       </div>
-      <button class="btn btn-sm btn-ghost js-leaveadmin" hidden>Leave admin</button>
+      <button class="btn btn-sm btn-ghost js-signout">Sign out</button>
     </div>
   </aside>
 
@@ -1225,6 +1229,7 @@ const ICONS = {
   more:'<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="3.2" cy="8" r="1.35"/><circle cx="8" cy="8" r="1.35"/><circle cx="12.8" cy="8" r="1.35"/></svg>',
   chart:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.3 13.7h11.4"/><path d="M4.6 13.5V8.2M8 13.5V3.4M11.4 13.5V6.1"/></svg>',
   print:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M4.5 6.2V2.4h7v3.8"/><rect x="2.3" y="6.2" width="11.4" height="5" rx="1.2"/><path d="M4.5 9.6h7v4H4.5z"/></svg>',
+  signout:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.2 13.5H3.4a.9.9 0 0 1-.9-.9V3.4a.9.9 0 0 1 .9-.9h2.8"/><path d="M10.2 11 13.5 8l-3.3-3M13.5 8H6.4"/></svg>',
   lock:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3.4" y="7" width="9.2" height="6.4" rx="1.3"/><path d="M5.6 7V5.2a2.4 2.4 0 0 1 4.8 0V7"/></svg>',
   plus:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg>',
   search:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.3"/><path d="m10.3 10.3 3 3" stroke-linecap="round"/></svg>',
@@ -1293,7 +1298,9 @@ function renderNav(){
   const sheetPages = isAdmin() ? pages.filter(function(p){ return p.secondary; }) : pages;
   $("#moreSheet").innerHTML =
     '<p class="lbl" style="padding:2px 4px 8px">'+(isAdmin() ? "Also in the system" : "Go to")+'</p>'
-    + sheetPages.map(function(p){ return item(p, true); }).join("");
+    + sheetPages.map(function(p){ return item(p, true); }).join("")
+    + '<button class="nav-item js-signout sheet-signout">' + ICONS.signout
+      + '<span>Sign out</span></button>';
   $("#moreSheet").classList.toggle("from-top", !isAdmin());
 
   document.querySelectorAll(".js-rolebadge").forEach(function(el){
@@ -1306,7 +1313,6 @@ function renderNav(){
       ? "Full access, including money"
       : "Jobs, customers and outsourcing";
   });
-  document.querySelectorAll(".js-leaveadmin").forEach(function(el){ el.hidden = !isAdmin(); });
 }
 
 function toggleMore(open){
@@ -3290,13 +3296,25 @@ document.addEventListener("click", function(e){
 
   if(t.id === "scrim"){ closeDrawer(); return; }
 
-  if(t.closest(".js-leaveadmin")){
-    closeDrawer(); toggleMore(false);
-    api("POST", "/api/logout").catch(function(){}).then(function(){
-      setRole(null);
-      db = {staff:[], customers:[], partners:[], jobs:[], version:0};
-      history.replaceState(null, "", basePath() + location.search);
-      renderSignIn("");
+  if(t.closest(".js-signout")){
+    askConfirm({
+      title: "Sign out of this device?",
+      ok: "Yes, sign out",
+      cancel: "Stay signed in",
+      body: '<p>You will need the password again to get back in.</p>'
+    }).then(function(yes){
+      if(!yes) return;
+      closeDrawer(); toggleMore(false); stopPolling();
+      // Clear locally whatever the server says, so a dropped connection can't
+      // leave the register on screen after someone has signed out.
+      api("POST", "/api/logout").catch(function(){}).then(function(){
+        setRole(null);
+        db = {staff:[], customers:[], partners:[], jobs:[], version:0};
+        location.hash = "";
+        history.replaceState(null, "", basePath() + location.search);
+        renderSignIn("");
+        toast("Signed out");
+      });
     });
     return;
   }

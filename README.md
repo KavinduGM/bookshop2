@@ -35,7 +35,11 @@ address back to `/`, so the admin link never lingers in the browser history of a
 shared phone.
 
 The plain address asks only for a password and shows no sign that an admin area
-exists. **Leave admin** in the sidebar signs out.
+exists.
+
+**Sign out** is in the sidebar, and in the ☰ menu on a phone — staff have no
+sidebar there. It asks for confirmation, then ends the session on the server as
+well as in the browser.
 
 ### What each role can do
 
