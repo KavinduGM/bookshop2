@@ -550,6 +550,16 @@ label.check input{width:16px; height:16px; accent-color:var(--accent); flex:0 0 
 .tabs button[aria-pressed="true"]{background:var(--surface); color:var(--ink); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .tabs .n{font-family:var(--mono); font-size:10.5px; opacity:.6; margin-left:4px}
 
+.filterbar{
+  display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap;
+  padding:13px 14px; border:1px solid var(--line); border-radius:12px;
+  background:var(--surface); box-shadow:var(--shadow);
+}
+.fbit{display:flex; flex-direction:column; gap:5px; min-width:0; flex:0 1 210px}
+.fbit .select{font-size:13px; padding:7px 26px 7px 10px}
+.filterbar .btn{margin-left:auto; align-self:center}
+.filter-toggle{display:none; margin-left:auto}
+
 /* ============ LOGIN ============ */
 .login{display:none}
 body[data-login] .login{
@@ -785,6 +795,12 @@ body[data-login] .app{display:none}
   .tabs::-webkit-scrollbar{display:none}
   .tabs button{flex:0 0 auto; white-space:nowrap; padding:7px 12px}
 
+  .filter-toggle{display:inline-flex; flex:0 0 auto; margin-left:0}
+  .filterbar{display:none}
+  body.filters-open .filterbar{display:flex}
+  .fbit{flex:1 1 100%}
+  .filterbar .btn{margin-left:0; width:100%; justify-content:center}
+
   /* Drawer goes full screen */
   .drawer{width:100%; border-left:none}
   .drawer-head{padding:calc(14px + env(safe-area-inset-top, 0px)) 16px 13px}
@@ -918,6 +934,7 @@ const JOB_TYPES = [
   "Boxes & packaging",
   "Letterheads & stationery",
   "Vehicle branding",
+  "Photo printing & framing",
   "Photocopy & binding",
   "Other"
 ];
@@ -964,7 +981,7 @@ function refreshToday(){
 
 let db = {staff:[], customers:[], partners:[], jobs:[], version:0};
 let route = "new", role = null;
-let filter = {q:"", tab:"active"};
+let filter = {q:"", tab:"active", person:"", type:"", outsourced:""};
 let searchTimer = null;
 let offline = false;
 
@@ -1230,6 +1247,7 @@ const ICONS = {
   chart:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.3 13.7h11.4"/><path d="M4.6 13.5V8.2M8 13.5V3.4M11.4 13.5V6.1"/></svg>',
   print:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M4.5 6.2V2.4h7v3.8"/><rect x="2.3" y="6.2" width="11.4" height="5" rx="1.2"/><path d="M4.5 9.6h7v4H4.5z"/></svg>',
   signout:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.2 13.5H3.4a.9.9 0 0 1-.9-.9V3.4a.9.9 0 0 1 .9-.9h2.8"/><path d="M10.2 11 13.5 8l-3.3-3M13.5 8H6.4"/></svg>',
+  filter:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.4 4h11.2M4.6 8h6.8M6.8 12h2.4"/></svg>',
   lock:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3.4" y="7" width="9.2" height="6.4" rx="1.3"/><path d="M5.6 7V5.2a2.4 2.4 0 0 1 4.8 0V7"/></svg>',
   plus:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg>',
   search:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.3"/><path d="m10.3 10.3 3 3" stroke-linecap="round"/></svg>',
@@ -1477,15 +1495,36 @@ const TABS = [
   {id:"all",       label:"All",          test:function(){ return true; }}
 ];
 
+function filterCount(){
+  return (filter.person?1:0) + (filter.type?1:0) + (filter.outsourced?1:0);
+}
+
 function filteredJobs(){
   const tab = TABS.find(function(t){ return t.id===filter.tab; }) || TABS[0];
   const q = filter.q.trim().toLowerCase();
   return db.jobs.filter(function(j){
     if(!tab.test(j)) return false;
+
+    if(filter.person){
+      const on = j.assigned || [];
+      if(filter.person === "none"){ if(on.length) return false; }
+      else if(on.indexOf(filter.person) === -1) return false;
+    }
+    if(filter.type && (j.type || "Other") !== filter.type) return false;
+    if(filter.outsourced === "yes" && !j.outsourced) return false;
+    if(filter.outsourced === "no"  &&  j.outsourced) return false;
+
     if(!q) return true;
+    // Searching covers everything written on the job, so a phone number, a
+    // remark or an outsourcer's name all find it.
     const c = jobCustomer(j);
-    return (j.name+" "+j.code+" "+c.name+" "+c.company+" "+c.phone+" "+statusMeta(j.status).label)
-           .toLowerCase().indexOf(q) > -1;
+    const o = jobPartner(j) || {};
+    const people = (j.assigned || [])
+      .map(function(id){ const st = staffById(id); return st ? st.name : ""; }).join(" ");
+    return [j.name, j.code, j.type, c.name, c.company, c.phone,
+            statusMeta(j.status).label, people, j.notes,
+            o.name, o.company, o.phone]
+      .join(" ").toLowerCase().indexOf(q) > -1;
   }).sort(function(a,b){ return (b.startDate||"").localeCompare(a.startDate||"") || String(b.code).localeCompare(String(a.code)); });
 }
 
@@ -1503,6 +1542,49 @@ function jobListSection(list){
         : '');
 }
 
+/* Only offer values that actually appear on a job — a dropdown full of types
+   nobody has ever used is just noise. */
+function typesInUse(){
+  const seen = {};
+  db.jobs.forEach(function(j){ seen[j.type || "Other"] = true; });
+  return JOB_TYPES.filter(function(t){ return seen[t]; });
+}
+
+function jobFilterBar(){
+  const people = db.staff.slice().sort(function(a,b){ return a.name.localeCompare(b.name); });
+  const types = typesInUse();
+  const anyOutsourced = db.jobs.some(function(j){ return j.outsourced; });
+  const active = filterCount();
+
+  const sel = function(name, label, options, value){
+    return '<label class="fbit"><span class="lbl">'+label+'</span>'
+      + '<select class="select" data-filter="'+name+'">' + options.map(function(o){
+          return '<option value="'+esc(o[0])+'"'+(o[0]===value?' selected':'')+'>'+esc(o[1])+'</option>';
+        }).join("") + '</select></label>';
+  };
+
+  return '<div class="filterbar">'
+    + sel("person", "Responsible person",
+        [["","Anyone"]]
+          .concat(people.map(function(p){ return [p.id, p.name + (p.active ? "" : " (inactive)")]; }))
+          .concat([["none","Nobody assigned"]]),
+        filter.person)
+    + (types.length > 1
+        ? sel("type", "Type of work",
+            [["","All types"]].concat(types.map(function(t){ return [t,t]; })), filter.type)
+        : "")
+    + (anyOutsourced
+        ? sel("outsourced", "Outsourcing",
+            [["","In-house and outsourced"],["yes","Outsourced only"],["no","In-house only"]],
+            filter.outsourced)
+        : "")
+    + (active
+        ? '<button class="btn btn-sm btn-ghost" id="clearFilters">Clear '
+          + plural(active,"filter") + '</button>'
+        : "")
+  + '</div>';
+}
+
 function renderJobs(){
   const list = filteredJobs();
   $("#view").innerHTML =
@@ -1514,11 +1596,20 @@ function renderJobs(){
             + t.label + '<span class="n">'+n+'</span></button>';
         }).join("")
       + '</div>'
+      + (db.jobs.length
+          ? '<button class="btn btn-sm filter-toggle" id="toggleFilters">'
+            + ICONS.filter + 'Filters' + (filterCount() ? ' ('+filterCount()+')' : '') + '</button>'
+          : '')
     + '</div>'
+    + (db.jobs.length ? jobFilterBar() : '')
     + '<section class="card">'+ jobListSection(list) +'</section>'
     + (db.jobs.length
         ? '<p class="hint">Showing <b class="num">'+Math.min(shown,list.length)+'</b> of '
-          + plural(list.length,"matching job")+'. Tap any row to open it.</p>'
+          + plural(list.length,"matching job")
+          + (filterCount() || filter.q.trim()
+              ? ' — out of ' + plural(db.jobs.length,"job") + ' in total'
+              : '')
+          + '. Tap any row to open it.</p>'
         : '');
 }
 
@@ -3170,6 +3261,16 @@ document.addEventListener("click", function(e){
   const tab = t.closest("[data-tab]");
   if(tab){ filter.tab = tab.getAttribute("data-tab"); shown = PAGE_SIZE; render(); return; }
 
+  if(t.id === "clearFilters"){
+    filter.person = ""; filter.type = ""; filter.outsourced = "";
+    shown = PAGE_SIZE; renderJobs(); return;
+  }
+
+  if(t.id === "toggleFilters"){
+    document.body.classList.toggle("filters-open");
+    return;
+  }
+
   const rng = t.closest("[data-range]");
   if(rng){ range = rng.getAttribute("data-range"); renderAnalytics(); return; }
 
@@ -3336,7 +3437,7 @@ document.addEventListener("click", function(e){
       if(!ok) return;
       try{ await api("POST", "/api/wipe"); }
       catch(e){ toast(e.message); return; }
-      closeDrawer(); filter={q:"",tab:"active"};
+      closeDrawer(); filter={q:"",tab:"active",person:"",type:"",outsourced:""};
       go(homeRoute(), true);
       toast("Everything erased");
     });
@@ -3422,6 +3523,12 @@ document.addEventListener("input", function(e){
 
 document.addEventListener("change", function(e){
   const t = e.target;
+  if(t.matches && t.matches("[data-filter]")){
+    filter[t.getAttribute("data-filter")] = t.value;
+    shown = PAGE_SIZE;
+    renderJobs();
+    return;
+  }
   if(t.name==="customerId") updateCustHint();
   if(t.name==="outsourced"){
     const box = $("#outsrcBox");

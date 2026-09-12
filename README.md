@@ -128,6 +128,28 @@ It then opens like an app: tap the icon, the job form is already there. The
 handover date, assigned staff, total cost, advance paid and its date, final
 payment and its date, pending balance, current stage, and notes.
 
+### Finding a job
+
+The Jobs page filters on three things at once, and staff have the same filters
+as the admin:
+
+| Filter | Choices |
+| --- | --- |
+| Responsible person | Anyone, each team member, or **Nobody assigned** |
+| Type of work | Any type that appears on at least one job |
+| Outsourcing | Everything, outsourced only, or in-house only |
+
+They stack with the status tabs along the top, so "everything Ishara has on the
+floor that went outside" is three taps. A **Clear filters** button appears
+whenever any are on, and the count line underneath says how many jobs matched
+out of the total.
+
+The search box covers everything written on a job — name, job number, customer,
+phone, type, stage, **the people assigned**, the remarks, and the outsourcer.
+
+On a phone the filters sit behind a **Filters** button so the job list stays in
+view; the button shows how many are active.
+
 **Print stages**, grouped into four phases. Phases are ordered, so they use a
 single blue ramp — the deeper the blue, the further along the work is:
 
